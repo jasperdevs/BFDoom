@@ -1457,6 +1457,18 @@ bool host_actor_is_decoration(int type) {
   }
 }
 
+bool host_actor_blocks_move(int type) {
+  switch (type) {
+    case 35:
+    case 48:
+    case 2028:
+    case 2035:
+      return true;
+    default:
+      return false;
+  }
+}
+
 int host_actor_card_index(int type) {
   switch (type) {
     case 5:
@@ -4749,6 +4761,39 @@ bool host_path_blocked_by_line_map(double ax, double ay, double bx, double by) {
   return false;
 }
 
+bool host_player_path_blocked_by_actor_map(double ax, double ay,
+                                           double bx, double by) {
+  ensure_host_actors();
+  const double player_radius = 16.0;
+  double sx = bx - ax;
+  double sy = by - ay;
+  double len2 = sx * sx + sy * sy;
+
+  for (size_t i = 0; i < g_host_actors.size(); i++) {
+    const HostActor& actor = g_host_actors[i];
+    if (!actor.alive || !host_actor_blocks_move(actor.type))
+      continue;
+
+    double t = 0.0;
+    if (len2 > 0.000001) {
+      t = ((actor.x - ax) * sx + (actor.y - ay) * sy) / len2;
+      if (t < 0.0)
+        t = 0.0;
+      if (t > 1.0)
+        t = 1.0;
+    }
+    double px = ax + sx * t;
+    double py = ay + sy * t;
+    double dx = actor.x - px;
+    double dy = actor.y - py;
+    double radius = player_radius + host_actor_radius(actor.type);
+    if (dx * dx + dy * dy < radius * radius)
+      return true;
+  }
+
+  return false;
+}
+
 void host_collect_pickups() {
   ensure_host_actors();
   ensure_host_player_start();
@@ -5974,7 +6019,9 @@ void run_snapshot_host_loop(vector<byte>* mem) {
     double nx = g_host_player_x + cos(g_host_player_angle) * 16.0 * dir;
     double ny = g_host_player_y + sin(g_host_player_angle) * 16.0 * dir;
     if (!host_path_blocked_by_line_map(g_host_player_x, g_host_player_y, nx,
-                                       ny)) {
+                                       ny) &&
+        !host_player_path_blocked_by_actor_map(g_host_player_x,
+                                               g_host_player_y, nx, ny)) {
       g_host_player_x = nx;
       g_host_player_y = ny;
     }
@@ -6024,7 +6071,9 @@ void run_snapshot_host_loop(vector<byte>* mem) {
       double nx = g_host_player_x + cos(g_host_player_angle) * 16.0 * dir;
       double ny = g_host_player_y + sin(g_host_player_angle) * 16.0 * dir;
       if (!host_path_blocked_by_line_map(g_host_player_x, g_host_player_y,
-                                         nx, ny)) {
+                                         nx, ny) &&
+          !host_player_path_blocked_by_actor_map(g_host_player_x,
+                                                 g_host_player_y, nx, ny)) {
         g_host_player_x = nx;
         g_host_player_y = ny;
       }
