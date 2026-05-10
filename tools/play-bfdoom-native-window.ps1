@@ -170,6 +170,10 @@ public sealed class BFDoomNativeForm : Form {
     if (mapped.Length == 0) return;
     e.SuppressKeyPress = true;
     if ("wasd".Contains(mapped)) {
+      if (mapped == "a") held.Remove("d");
+      if (mapped == "d") held.Remove("a");
+      if (mapped == "w") held.Remove("s");
+      if (mapped == "s") held.Remove("w");
       held.Add(mapped);
     } else {
       SendInput(mapped);
