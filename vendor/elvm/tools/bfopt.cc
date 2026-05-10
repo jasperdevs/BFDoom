@@ -2652,9 +2652,41 @@ void draw_host_number(int screen, int width, int height, int x, int y,
 bool draw_host_wad_patch(int screen, int width, int height, const char* name,
                          int center_x, int bottom_y, int draw_h);
 
+bool draw_host_patch_number(int screen, int width, int height, int right_x,
+                            int top_y, int value, int min_digits, int draw_h,
+                            int advance) {
+  if (value < 0)
+    value = 0;
+  if (value > 999)
+    value = 999;
+
+  int digits[3] = {value / 100, (value / 10) % 10, value % 10};
+  int start = min_digits >= 3 || value >= 100 ? 0
+              : (value >= 10 || min_digits >= 2 ? 1 : 2);
+  int count = 3 - start;
+  bool drew = false;
+
+  for (int i = start; i < 3; i++) {
+    char patch[9];
+    snprintf(patch, sizeof(patch), "STTNUM%d", digits[i]);
+    int slot = i - start;
+    int center_x = right_x - (count - slot - 1) * advance - advance / 2;
+    if (draw_host_wad_patch(screen, width, height, patch, center_x,
+                            top_y + draw_h, draw_h)) {
+      drew = true;
+    }
+  }
+
+  return drew;
+}
+
 void draw_host_status_bar(int screen, int width, int height) {
   int bar_h = height >= 320 ? 64 : 32;
   int y = height - bar_h;
+  int status_scale = bar_h / 32;
+  if (status_scale < 1)
+    status_scale = 1;
+  draw_host_rect(screen, width, height, 0, y, width, height, 96);
   if (!draw_host_wad_patch(screen, width, height, "STBAR", width / 2, height,
                            bar_h)) {
     draw_host_rect(screen, width, height, 0, y, width, height, 7);
@@ -2666,12 +2698,40 @@ void draw_host_status_bar(int screen, int width, int height) {
     draw_host_rect(screen, width, height, width * 2 / 3 + 4, y + 4,
                    width - 4, height - 3, 96);
   }
-  draw_host_number(screen, width, height, width / 8 - 20, y + bar_h / 3,
-                   host_current_ammo(), 2, 3, 160);
-  draw_host_number(screen, width, height, width / 2 - 26, y + bar_h / 3,
-                   g_host_health, 3, 3, 176);
-  draw_host_number(screen, width, height, width * 7 / 8 - 32, y + bar_h / 3,
-                   g_host_armor, 2, 3, 80);
+  int number_top = y + 3 * status_scale;
+  int number_h = 16 * status_scale;
+  int number_advance = 14 * status_scale;
+  bool wad_numbers = true;
+  wad_numbers = draw_host_patch_number(screen, width, height,
+                                       44 * status_scale, number_top,
+                                       host_current_ammo(), 1, number_h,
+                                       number_advance) && wad_numbers;
+  wad_numbers = draw_host_patch_number(screen, width, height,
+                                       90 * status_scale, number_top,
+                                       g_host_health, 1, number_h,
+                                       number_advance) && wad_numbers;
+  wad_numbers = draw_host_wad_patch(screen, width, height, "STTPRCNT",
+                                    97 * status_scale, number_top + number_h,
+                                    number_h) && wad_numbers;
+  wad_numbers = draw_host_wad_patch(screen, width, height, "STFST00",
+                                    155 * status_scale,
+                                    y + 29 * status_scale,
+                                    29 * status_scale) && wad_numbers;
+  wad_numbers = draw_host_patch_number(screen, width, height,
+                                       221 * status_scale, number_top,
+                                       g_host_armor, 1, number_h,
+                                       number_advance) && wad_numbers;
+  wad_numbers = draw_host_wad_patch(screen, width, height, "STTPRCNT",
+                                    228 * status_scale, number_top + number_h,
+                                    number_h) && wad_numbers;
+  if (!wad_numbers) {
+    draw_host_number(screen, width, height, width / 8 - 20, y + bar_h / 3,
+                     host_current_ammo(), 2, 3, 160);
+    draw_host_number(screen, width, height, width / 2 - 26, y + bar_h / 3,
+                     g_host_health, 3, 3, 176);
+    draw_host_number(screen, width, height, width * 7 / 8 - 32, y + bar_h / 3,
+                     g_host_armor, 2, 3, 80);
+  }
 }
 
 void draw_host_flat_background(int screen, int width, int height, double px,
@@ -3431,37 +3491,6 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   }
 
   draw_host_status_bar(screen, width, height);
-
-  int map_scale = 80;
-  int ox = 70;
-  int oy = height - status_h - 10;
-  for (int i = 0; i < (int)g_host_lines.size(); i++) {
-    int x1 = ox + static_cast<int>((g_host_lines[i].x1 - px) / map_scale);
-    int y1 = oy - static_cast<int>((g_host_lines[i].y1 - py) / map_scale);
-    int x2 = ox + static_cast<int>((g_host_lines[i].x2 - px) / map_scale);
-    int y2 = oy - static_cast<int>((g_host_lines[i].y2 - py) / map_scale);
-    if ((x1 < 0 && x2 < 0) || (x1 > 140 && x2 > 140) ||
-        (y1 < height - 120 && y2 < height - 120) ||
-        (y1 > height && y2 > height))
-      continue;
-    draw_host_line(screen, width, height, x1, y1, x2, y2,
-                   g_host_lines[i].solid ? 64 : 96);
-  }
-  for (size_t i = 0; i < g_host_actors.size(); i++) {
-    if (!g_host_actors[i].alive)
-      continue;
-    int ax = ox + static_cast<int>((g_host_actors[i].x - px) / map_scale);
-    int ay = oy - static_cast<int>((g_host_actors[i].y - py) / map_scale);
-    if (ax < 0 || ax > 140 || ay < height - 120 || ay > height)
-      continue;
-    draw_host_rect(screen, width, height, ax, ay, ax + 1, ay + 1,
-                   host_actor_is_enemy(g_host_actors[i].type) ? 176 : 160);
-  }
-  draw_host_line(screen, width, height, ox - 3, oy, ox + 3, oy, 112);
-  draw_host_line(screen, width, height, ox, oy - 3, ox, oy + 3, 112);
-  draw_host_line(screen, width, height, ox, oy,
-                 ox + static_cast<int>(cos(base_angle) * 8.0),
-                 oy - static_cast<int>(sin(base_angle) * 8.0), 112);
 
   if (g_host_pickup_flash > 0) {
     draw_host_rect(screen, width, height, 0, height - 3, width, height, 160);
