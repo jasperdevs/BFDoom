@@ -149,6 +149,7 @@ int g_host_ammo_max[HOST_AMMO_COUNT] = {200, 50, 50, 300};
 int g_host_health = 100;
 int g_host_armor = 0;
 int g_host_tick;
+int g_host_prndindex;
 int g_host_damage_flash;
 int g_host_pickup_flash;
 bool g_host_level_complete;
@@ -234,6 +235,27 @@ static const unsigned int kFastCacheVersion = 3;
 static const unsigned int kSnapshotMagic = 0x4246534e;
 static const unsigned int kSnapshotVersion = 2;
 static const double kPi = 3.14159265358979323846;
+static const unsigned char kDoomRndTable[256] = {
+    0,   8, 109, 220, 222, 241, 149, 107,  75, 248, 254, 140,  16,  66,
+    74,  21, 211,  47,  80, 242, 154,  27, 205, 128, 161,  89,  77,  36,
+    95, 110,  85,  48, 212, 140, 211, 249,  22,  79, 200,  50,  28, 188,
+    52, 140, 202, 120,  68, 145,  62,  70, 184, 190,  91, 197, 152, 224,
+    149, 104,  25, 178, 252, 182, 202, 182, 141, 197,   4,  81, 181, 242,
+    145,  42,  39, 227, 156, 198, 225, 193, 219,  93, 122, 175, 249,   0,
+    175, 143,  70, 239,  46, 246, 163,  53, 163, 109, 168, 135,   2, 235,
+    25,  92,  20, 145, 138,  77,  69, 166,  78, 176, 173, 212, 166, 113,
+    94, 161,  41,  50, 239,  49, 111, 164,  70,  60,   2,  37, 171,  75,
+    136, 156,  11,  56,  42, 146, 138, 229,  73, 146,  77,  61,  98, 196,
+    135, 106,  63, 197, 195,  86,  96, 203, 113, 101, 170, 247, 181, 113,
+    80, 250, 108,   7, 255, 237, 129, 226,  79, 107, 112, 166, 103, 241,
+    24, 223, 239, 120, 198,  58,  60,  82, 128,   3, 184,  66, 143, 224,
+    145, 224,  81, 206, 163,  45,  63,  90, 168, 114,  59,  33, 159,  95,
+    28, 139, 123,  98, 125, 196,  15,  70, 194, 253,  54,  14, 109, 226,
+    71,  17, 161,  93, 186,  87, 244, 138,  20,  52, 123, 251,  26,  36,
+    17,  46,  52, 231, 232,  76,  31, 221,  84,  37, 216, 165, 212, 106,
+    197, 242,  98,  43,  39, 175, 254, 145, 190,  84, 118, 222, 187, 136,
+    120, 163, 236, 249,
+};
 
 struct CacheFastOp {
   unsigned char op;
@@ -1215,18 +1237,38 @@ const char* host_weapon_patch_name(bool firing) {
   }
 }
 
+int host_p_random() {
+  g_host_prndindex = (g_host_prndindex + 1) & 0xff;
+  return kDoomRndTable[g_host_prndindex];
+}
+
+int host_bullet_damage() {
+  return 5 * (host_p_random() % 3 + 1);
+}
+
+int host_melee_damage() {
+  switch (g_host_weapon) {
+    case 1:
+      return 2 * (host_p_random() % 10 + 1);
+    default:
+      return (host_p_random() % 10 + 1) << 1;
+  }
+}
+
+double host_doom_angle_spread(int shift) {
+  int delta = host_p_random() - host_p_random();
+  double fixed_delta = static_cast<double>(delta) * static_cast<double>(1 << shift);
+  return fixed_delta * (2.0 * kPi / 4294967296.0);
+}
+
 int host_weapon_damage() {
   switch (g_host_weapon) {
     case 1:
-      return 20;
-    case 3:
-      return 40;
-    case 4:
-      return 10;
+      return host_melee_damage();
     case 5:
       return 100;
     default:
-      return 10;
+      return host_bullet_damage();
   }
 }
 
@@ -4572,17 +4614,15 @@ void host_alert_enemies_from_sound() {
   }
 }
 
-void host_fire_hitscan(const vector<byte>& render_args) {
-  (void)render_args;
-  ensure_host_actors();
-  ensure_host_player_start();
+bool host_fire_hitscan_shot(double angle,
+                            int damage,
+                            double max_dist,
+                            bool use_rendered_crosshair,
+                            bool log_miss) {
   double px = g_host_player_x;
   double py = g_host_player_y;
-  double angle = g_host_player_angle;
   double aim_dx = cos(angle);
   double aim_dy = sin(angle);
-  int damage = host_weapon_damage();
-  double max_dist = g_host_weapon == 1 ? 96.0 : 2048.0;
 
   int best = -1;
   double best_dist = 1.0e30;
@@ -4592,20 +4632,22 @@ void host_fire_hitscan(const vector<byte>& render_args) {
   double nearest_rel = 0.0;
 
   int cross_x = g_host_render_width > 0 ? g_host_render_width / 2 : kFrameWidth / 2;
-  for (size_t i = 0; i < g_host_rendered_actors.size(); i++) {
-    const HostRenderedActor& rendered = g_host_rendered_actors[i];
-    if (rendered.index < 0 || rendered.index >= (int)g_host_actors.size())
-      continue;
-    HostActor& actor = g_host_actors[rendered.index];
-    if (!actor.alive || !host_actor_is_enemy(actor.type))
-      continue;
-    if (rendered.dist > max_dist)
-      continue;
-    if (cross_x < rendered.x0 - 8 || cross_x > rendered.x1 + 8)
-      continue;
-    if (rendered.dist < best_dist) {
-      best = rendered.index;
-      best_dist = rendered.dist;
+  if (use_rendered_crosshair) {
+    for (size_t i = 0; i < g_host_rendered_actors.size(); i++) {
+      const HostRenderedActor& rendered = g_host_rendered_actors[i];
+      if (rendered.index < 0 || rendered.index >= (int)g_host_actors.size())
+        continue;
+      HostActor& actor = g_host_actors[rendered.index];
+      if (!actor.alive || !host_actor_is_enemy(actor.type))
+        continue;
+      if (rendered.dist > max_dist)
+        continue;
+      if (cross_x < rendered.x0 - 8 || cross_x > rendered.x1 + 8)
+        continue;
+      if (rendered.dist < best_dist) {
+        best = rendered.index;
+        best_dist = rendered.dist;
+      }
     }
   }
 
@@ -4652,11 +4694,12 @@ void host_fire_hitscan(const vector<byte>& render_args) {
       g_host_actors[best].death_tics = 1;
     }
     if (!isatty(STDERR_FILENO)) {
-      fprintf(stderr, "hit type=%d health=%d alive=%d\n",
-              g_host_actors[best].type, g_host_actors[best].health,
+      fprintf(stderr, "hit type=%d damage=%d health=%d alive=%d\n",
+              g_host_actors[best].type, damage, g_host_actors[best].health,
               g_host_actors[best].alive ? 1 : 0);
     }
-  } else if (!isatty(STDERR_FILENO)) {
+    return true;
+  } else if (log_miss && !isatty(STDERR_FILENO)) {
     if (nearest >= 0) {
       fprintf(stderr,
               "miss rendered=%zu nearest_type=%d dist=%.1f rel_deg=%.1f aim_deg=%.1f pos=(%.1f,%.1f) angle=%.1f\n",
@@ -4670,6 +4713,41 @@ void host_fire_hitscan(const vector<byte>& render_args) {
               g_host_rendered_actors.size(), px, py, angle * 180.0 / kPi);
     }
   }
+  return false;
+}
+
+void host_fire_hitscan(const vector<byte>& render_args) {
+  (void)render_args;
+  ensure_host_actors();
+  ensure_host_player_start();
+
+  double max_dist = g_host_weapon == 1 ? 65.0 : 2048.0;
+
+  if (g_host_weapon == 3) {
+    bool any_hit = false;
+    for (int i = 0; i < 7; i++) {
+      int damage = host_bullet_damage();
+      double angle = normalize_host_angle(g_host_player_angle +
+                                          host_doom_angle_spread(18));
+      bool hit = host_fire_hitscan_shot(angle, damage, max_dist, false,
+                                        i == 6 && !any_hit);
+      any_hit = any_hit || hit;
+    }
+    return;
+  }
+
+  if (g_host_weapon == 1) {
+    double angle = normalize_host_angle(g_host_player_angle +
+                                        host_doom_angle_spread(18));
+    host_fire_hitscan_shot(angle, host_melee_damage(), max_dist, false, true);
+    return;
+  }
+
+  bool accurate = g_host_weapon == 2 || g_host_weapon == 4;
+  double angle = g_host_player_angle;
+  if (!accurate)
+    angle = normalize_host_angle(angle + host_doom_angle_spread(18));
+  host_fire_hitscan_shot(angle, host_weapon_damage(), max_dist, accurate, true);
 }
 
 void process_bfio_set_thing_position(const vector<byte>& args) {
