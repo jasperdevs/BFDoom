@@ -2924,6 +2924,29 @@ void draw_host_automap(int screen, int width, int height) {
 bool draw_host_wad_patch(int screen, int width, int height, const char* name,
                          int center_x, int bottom_y, int draw_h);
 
+bool draw_host_wad_patch_at(int screen, int width, int height, const char* name,
+                            int left_x, int top_y, int draw_h) {
+  int lump = find_lump_index(name);
+  if (lump < 0 || lump >= (int)g_wad_positions.size())
+    return false;
+
+  int pos = g_wad_positions[lump];
+  int lump_size = g_wad_sizes[lump];
+  if (lump_size < 8 || pos < 0 || pos + lump_size > (int)g_wad.size())
+    return false;
+
+  int patch_width = g_wad[pos] | (g_wad[pos + 1] << 8);
+  int patch_height = g_wad[pos + 2] | (g_wad[pos + 3] << 8);
+  if (patch_width <= 0 || patch_height <= 0)
+    return false;
+
+  int draw_w = patch_width * draw_h / patch_height;
+  if (draw_w < 2)
+    draw_w = 2;
+  return draw_host_wad_patch(screen, width, height, name, left_x + draw_w / 2,
+                             top_y + draw_h, draw_h);
+}
+
 const char* host_status_face_patch() {
   if (g_host_health <= 0)
     return "STFDEAD0";
@@ -3028,6 +3051,26 @@ bool draw_host_status_ammo_reserves(int screen, int width, int height, int y,
   return drew;
 }
 
+bool draw_host_status_arms(int screen, int width, int height, int y,
+                           int status_scale) {
+  bool drew = draw_host_wad_patch_at(screen, width, height, "STARMS",
+                                     104 * status_scale, y,
+                                     32 * status_scale);
+  int draw_h = 6 * status_scale;
+  for (int i = 0; i < 6; i++) {
+    int slot = i + 2;
+    const char* prefix = g_host_weapon_owned[slot] ? "STGNUM" : "STYSNUM";
+    char patch[16];
+    snprintf(patch, sizeof(patch), "%s%d", prefix, slot);
+    int left = (111 + (i % 3) * 12) * status_scale;
+    int top = y + (4 + (i / 3) * 10) * status_scale;
+    drew = draw_host_wad_patch_at(screen, width, height, patch, left, top,
+                                  draw_h) &&
+           drew;
+  }
+  return drew;
+}
+
 void draw_host_status_bar(int screen, int width, int height) {
   int bar_h = height >= 320 ? 64 : 32;
   int y = height - bar_h;
@@ -3061,6 +3104,8 @@ void draw_host_status_bar(int screen, int width, int height) {
   wad_numbers = draw_host_wad_patch(screen, width, height, "STTPRCNT",
                                     97 * status_scale, number_top + number_h,
                                     number_h) && wad_numbers;
+  wad_numbers = draw_host_status_arms(screen, width, height, y,
+                                      status_scale) && wad_numbers;
   wad_numbers = draw_host_wad_patch(screen, width, height,
                                     host_status_face_patch(),
                                     155 * status_scale,
