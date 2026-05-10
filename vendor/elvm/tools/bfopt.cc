@@ -2652,6 +2652,24 @@ void draw_host_number(int screen, int width, int height, int x, int y,
 bool draw_host_wad_patch(int screen, int width, int height, const char* name,
                          int center_x, int bottom_y, int draw_h);
 
+const char* host_status_face_patch() {
+  if (g_host_health <= 0)
+    return "STFDEAD0";
+
+  int pain = (100 - g_host_health) * 5 / 101;
+  if (pain < 0)
+    pain = 0;
+  if (pain > 4)
+    pain = 4;
+
+  static char patch[9];
+  if (g_host_damage_flash > 0)
+    snprintf(patch, sizeof(patch), "STFOUCH%d", pain);
+  else
+    snprintf(patch, sizeof(patch), "STFST%d0", pain);
+  return patch;
+}
+
 bool draw_host_patch_number(int screen, int width, int height, int right_x,
                             int top_y, int value, int min_digits, int draw_h,
                             int advance) {
@@ -2713,7 +2731,8 @@ void draw_host_status_bar(int screen, int width, int height) {
   wad_numbers = draw_host_wad_patch(screen, width, height, "STTPRCNT",
                                     97 * status_scale, number_top + number_h,
                                     number_h) && wad_numbers;
-  wad_numbers = draw_host_wad_patch(screen, width, height, "STFST00",
+  wad_numbers = draw_host_wad_patch(screen, width, height,
+                                    host_status_face_patch(),
                                     155 * status_scale,
                                     y + 29 * status_scale,
                                     29 * status_scale) && wad_numbers;
