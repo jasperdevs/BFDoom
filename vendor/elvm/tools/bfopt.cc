@@ -153,6 +153,10 @@ bool g_host_cards[6] = {false, false, false, false, false, false};
 bool g_host_backpack = false;
 bool g_host_berserk = false;
 int g_host_invuln_tics = 0;
+int g_host_invis_tics = 0;
+int g_host_suit_tics = 0;
+int g_host_infra_tics = 0;
+bool g_host_allmap = false;
 int g_host_tick;
 int g_host_motion_mask;
 int g_host_prndindex;
@@ -1519,6 +1523,10 @@ int host_card_mask() {
   return mask;
 }
 
+int host_powerup_flash_active(int tics) {
+  return tics > 4 * 32 || (tics & 8);
+}
+
 void host_give_body(int amount) {
   if (g_host_health >= 100)
     return;
@@ -1622,6 +1630,32 @@ void host_apply_damage(int damage) {
   if (!isatty(STDERR_FILENO))
     fprintf(stderr, "damage health=%d armor=%d armortype=%d\n",
             g_host_health, g_host_armor, g_host_armor_type);
+}
+
+void apply_host_powerup_colormap(vector<byte>& frame) {
+  bool invuln = host_powerup_flash_active(g_host_invuln_tics);
+  bool infra = !invuln && host_powerup_flash_active(g_host_infra_tics);
+  bool suit = !invuln && !infra && host_powerup_flash_active(g_host_suit_tics);
+  if (!invuln && !infra && !suit)
+    return;
+
+  for (size_t i = 0; i + 2 < frame.size(); i += 3) {
+    int r = frame[i];
+    int g = frame[i + 1];
+    int b = frame[i + 2];
+    if (invuln) {
+      int gray = (r * 30 + g * 59 + b * 11) / 100;
+      frame[i] = frame[i + 1] = frame[i + 2] = 255 - gray;
+    } else if (infra) {
+      frame[i] = min(255, r + (255 - r) / 2);
+      frame[i + 1] = min(255, g + (255 - g) / 2);
+      frame[i + 2] = min(255, b + (255 - b) / 2);
+    } else if (suit) {
+      frame[i] = r / 2;
+      frame[i + 1] = min(255, g + 80);
+      frame[i + 2] = b / 2;
+    }
+  }
 }
 
 void ensure_host_actors() {
@@ -3718,6 +3752,12 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   host_update_enemies();
   if (g_host_invuln_tics > 0)
     g_host_invuln_tics--;
+  if (g_host_invis_tics > 0)
+    g_host_invis_tics--;
+  if (g_host_suit_tics > 0)
+    g_host_suit_tics--;
+  if (g_host_infra_tics > 0)
+    g_host_infra_tics--;
   g_host_rendered_actors.clear();
   g_host_render_width = width;
 
@@ -4086,6 +4126,7 @@ void process_bfio_draw_frame(const vector<byte>& args) {
     }
   }
 
+  apply_host_powerup_colormap(frame);
   handle_frame(frame);
 }
 
@@ -5011,6 +5052,16 @@ void host_collect_pickups() {
       } else if (actor.type == 2023) {
         host_give_body(100);
         g_host_berserk = true;
+      } else if (actor.type == 2024) {
+        g_host_invis_tics = 60 * 35;
+      } else if (actor.type == 2025) {
+        g_host_suit_tics = 60 * 35;
+      } else if (actor.type == 2026) {
+        if (g_host_allmap)
+          continue;
+        g_host_allmap = true;
+      } else if (actor.type == 2045) {
+        g_host_infra_tics = 120 * 35;
       }
     } else {
       continue;
@@ -5020,10 +5071,12 @@ void host_collect_pickups() {
     g_host_pickup_flash = 5;
     if (!isatty(STDERR_FILENO)) {
       fprintf(stderr,
-              "pickup type=%d health=%d armor=%d armortype=%d ammo=%d keys=%02x backpack=%d berserk=%d invuln=%d\n",
+              "pickup type=%d health=%d armor=%d armortype=%d ammo=%d keys=%02x backpack=%d berserk=%d invuln=%d invis=%d suit=%d infra=%d allmap=%d\n",
               actor.type, g_host_health, g_host_armor, g_host_armor_type,
               host_current_ammo(), host_card_mask(), g_host_backpack ? 1 : 0,
-              g_host_berserk ? 1 : 0, g_host_invuln_tics);
+              g_host_berserk ? 1 : 0, g_host_invuln_tics,
+              g_host_invis_tics, g_host_suit_tics, g_host_infra_tics,
+              g_host_allmap ? 1 : 0);
     }
   }
 }
