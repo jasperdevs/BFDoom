@@ -2926,6 +2926,8 @@ bool draw_host_wad_patch(int screen, int width, int height, const char* name,
 const char* host_status_face_patch() {
   if (g_host_health <= 0)
     return "STFDEAD0";
+  if (g_host_invuln_tics > 0)
+    return "STFGOD0";
 
   int pain = (100 - g_host_health) * 5 / 101;
   if (pain < 0)
@@ -2936,14 +2938,17 @@ const char* host_status_face_patch() {
   static char patch[9];
   if (g_host_damage_flash > 0)
     snprintf(patch, sizeof(patch), "STFOUCH%d", pain);
+  else if (g_host_pickup_flash > 0)
+    snprintf(patch, sizeof(patch), "STFEVL%d", pain);
   else
     snprintf(patch, sizeof(patch), "STFST%d0", pain);
   return patch;
 }
 
-bool draw_host_patch_number(int screen, int width, int height, int right_x,
-                            int top_y, int value, int min_digits, int draw_h,
-                            int advance) {
+bool draw_host_patch_number_named(int screen, int width, int height,
+                                  const char* prefix, int right_x, int top_y,
+                                  int value, int min_digits, int draw_h,
+                                  int advance) {
   if (value < 0)
     value = 0;
   if (value > 999)
@@ -2956,8 +2961,8 @@ bool draw_host_patch_number(int screen, int width, int height, int right_x,
   bool drew = false;
 
   for (int i = start; i < 3; i++) {
-    char patch[9];
-    snprintf(patch, sizeof(patch), "STTNUM%d", digits[i]);
+    char patch[16];
+    snprintf(patch, sizeof(patch), "%s%d", prefix, digits[i]);
     int slot = i - start;
     int center_x = right_x - (count - slot - 1) * advance - advance / 2;
     if (draw_host_wad_patch(screen, width, height, patch, center_x,
@@ -2966,6 +2971,59 @@ bool draw_host_patch_number(int screen, int width, int height, int right_x,
     }
   }
 
+  return drew;
+}
+
+bool draw_host_patch_number(int screen, int width, int height, int right_x,
+                            int top_y, int value, int min_digits, int draw_h,
+                            int advance) {
+  return draw_host_patch_number_named(screen, width, height, "STTNUM", right_x,
+                                      top_y, value, min_digits, draw_h,
+                                      advance);
+}
+
+bool draw_host_status_keyboxes(int screen, int width, int height, int y,
+                               int status_scale) {
+  bool drew = true;
+  for (int row = 0; row < 3; row++) {
+    int key = -1;
+    if (g_host_cards[row])
+      key = row;
+    if (g_host_cards[row + 3])
+      key = row + 3;
+    if (key < 0)
+      continue;
+
+    char patch[9];
+    snprintf(patch, sizeof(patch), "STKEYS%d", key);
+    int top = y + (3 + row * 10) * status_scale;
+    int draw_h = 5 * status_scale;
+    drew = draw_host_wad_patch(screen, width, height, patch,
+                               (239 + 4) * status_scale, top + draw_h,
+                               draw_h) &&
+           drew;
+  }
+  return drew;
+}
+
+bool draw_host_status_ammo_reserves(int screen, int width, int height, int y,
+                                    int status_scale) {
+  static const int ammo_y[HOST_AMMO_COUNT] = {5, 11, 23, 17};
+  bool drew = true;
+  int draw_h = 6 * status_scale;
+  int advance = 4 * status_scale;
+  for (int i = 0; i < HOST_AMMO_COUNT; i++) {
+    int top = y + ammo_y[i] * status_scale;
+    drew = draw_host_patch_number_named(screen, width, height, "STYSNUM",
+                                        288 * status_scale, top,
+                                        g_host_ammo[i], 1, draw_h, advance) &&
+           drew;
+    drew = draw_host_patch_number_named(screen, width, height, "STYSNUM",
+                                        314 * status_scale, top,
+                                        g_host_ammo_max[i], 1, draw_h,
+                                        advance) &&
+           drew;
+  }
   return drew;
 }
 
@@ -3014,6 +3072,10 @@ void draw_host_status_bar(int screen, int width, int height) {
   wad_numbers = draw_host_wad_patch(screen, width, height, "STTPRCNT",
                                     228 * status_scale, number_top + number_h,
                                     number_h) && wad_numbers;
+  wad_numbers = draw_host_status_keyboxes(screen, width, height, y,
+                                          status_scale) && wad_numbers;
+  wad_numbers = draw_host_status_ammo_reserves(screen, width, height, y,
+                                               status_scale) && wad_numbers;
   (void)wad_numbers;
 }
 
