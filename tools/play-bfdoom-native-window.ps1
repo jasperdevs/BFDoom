@@ -44,6 +44,19 @@ public sealed class BFDoomNativeForm : Form {
   const int FrameBytes = FrameWidth * FrameHeight * 3;
   const int PacketBytes = 16 + FrameBytes;
   const int TitlebarHeight = 32;
+  const int ResizeBorder = 8;
+  const int MinScale = 1;
+  const int MaxScale = 2;
+  const int WM_NCHITTEST = 0x84;
+  const int HTCLIENT = 1;
+  const int HTLEFT = 10;
+  const int HTRIGHT = 11;
+  const int HTTOP = 12;
+  const int HTTOPLEFT = 13;
+  const int HTTOPRIGHT = 14;
+  const int HTBOTTOM = 15;
+  const int HTBOTTOMLEFT = 16;
+  const int HTBOTTOMRIGHT = 17;
 
   [DllImport("user32.dll")]
   static extern bool ReleaseCapture();
@@ -64,6 +77,8 @@ public sealed class BFDoomNativeForm : Form {
     FormBorderStyle = FormBorderStyle.None;
     StartPosition = FormStartPosition.CenterScreen;
     ClientSize = new Size(FrameWidth, FrameHeight + TitlebarHeight);
+    MinimumSize = new Size(FrameWidth * MinScale, FrameHeight * MinScale + TitlebarHeight);
+    MaximumSize = new Size(FrameWidth * MaxScale, FrameHeight * MaxScale + TitlebarHeight);
     BackColor = Color.Black;
     KeyPreview = true;
     DoubleBuffered = true;
@@ -155,14 +170,47 @@ public sealed class BFDoomNativeForm : Form {
   void PaintScreen(object sender, PaintEventArgs e) {
     var current = bitmap;
     if (current != null) {
+      e.Graphics.Clear(Color.Black);
       e.Graphics.CompositingMode = CompositingMode.SourceCopy;
       e.Graphics.CompositingQuality = CompositingQuality.HighSpeed;
       e.Graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
       e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
-      e.Graphics.DrawImage(current, screen.ClientRectangle);
+      e.Graphics.DrawImage(current, AspectFit(screen.ClientRectangle));
     } else {
       e.Graphics.Clear(Color.Black);
     }
+  }
+
+  static Rectangle AspectFit(Rectangle bounds) {
+    if (bounds.Width <= 0 || bounds.Height <= 0) return bounds;
+    double scale = Math.Min(bounds.Width / (double)FrameWidth,
+                            bounds.Height / (double)FrameHeight);
+    int drawW = Math.Max(1, (int)Math.Round(FrameWidth * scale));
+    int drawH = Math.Max(1, (int)Math.Round(FrameHeight * scale));
+    return new Rectangle(bounds.X + (bounds.Width - drawW) / 2,
+                         bounds.Y + (bounds.Height - drawH) / 2,
+                         drawW,
+                         drawH);
+  }
+
+  protected override void WndProc(ref Message m) {
+    base.WndProc(ref m);
+    if (m.Msg != WM_NCHITTEST || (int)m.Result != HTCLIENT) return;
+
+    Point p = PointToClient(Cursor.Position);
+    bool left = p.X >= 0 && p.X < ResizeBorder;
+    bool right = p.X <= ClientSize.Width && p.X >= ClientSize.Width - ResizeBorder;
+    bool top = p.Y >= 0 && p.Y < ResizeBorder;
+    bool bottom = p.Y <= ClientSize.Height && p.Y >= ClientSize.Height - ResizeBorder;
+
+    if (top && left) m.Result = (IntPtr)HTTOPLEFT;
+    else if (top && right) m.Result = (IntPtr)HTTOPRIGHT;
+    else if (bottom && left) m.Result = (IntPtr)HTBOTTOMLEFT;
+    else if (bottom && right) m.Result = (IntPtr)HTBOTTOMRIGHT;
+    else if (left) m.Result = (IntPtr)HTLEFT;
+    else if (right) m.Result = (IntPtr)HTRIGHT;
+    else if (top) m.Result = (IntPtr)HTTOP;
+    else if (bottom) m.Result = (IntPtr)HTBOTTOM;
   }
 
   void OnKeyDown(object sender, KeyEventArgs e) {

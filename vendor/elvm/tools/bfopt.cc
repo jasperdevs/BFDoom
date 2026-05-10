@@ -2602,53 +2602,6 @@ void draw_host_rect(int screen, int width, int height, int x0, int y0,
       write_elvm_byte(screen + y * width + x, color);
 }
 
-void draw_host_digit(int screen, int width, int height, int x, int y,
-                     int digit, int scale, int color) {
-  static const int segments[10] = {
-      0x3f, 0x06, 0x5b, 0x4f, 0x66,
-      0x6d, 0x7d, 0x07, 0x7f, 0x6f,
-  };
-  if (digit < 0 || digit > 9)
-    return;
-  int mask = segments[digit];
-  int t = scale;
-  int w = 4 * scale;
-  int h = 7 * scale;
-  if (mask & 0x01)
-    draw_host_rect(screen, width, height, x + t, y, x + w, y + t, color);
-  if (mask & 0x02)
-    draw_host_rect(screen, width, height, x + w, y + t, x + w + t,
-                   y + h / 2, color);
-  if (mask & 0x04)
-    draw_host_rect(screen, width, height, x + w, y + h / 2, x + w + t,
-                   y + h - t, color);
-  if (mask & 0x08)
-    draw_host_rect(screen, width, height, x + t, y + h - t, x + w,
-                   y + h, color);
-  if (mask & 0x10)
-    draw_host_rect(screen, width, height, x, y + h / 2, x + t,
-                   y + h - t, color);
-  if (mask & 0x20)
-    draw_host_rect(screen, width, height, x, y + t, x + t, y + h / 2,
-                   color);
-  if (mask & 0x40)
-    draw_host_rect(screen, width, height, x + t, y + h / 2 - t / 2,
-                   x + w, y + h / 2 + t / 2 + 1, color);
-}
-
-void draw_host_number(int screen, int width, int height, int x, int y,
-                      int value, int min_digits, int scale, int color) {
-  if (value < 0)
-    value = 0;
-  if (value > 999)
-    value = 999;
-  int digits[3] = {value / 100, (value / 10) % 10, value % 10};
-  int start = min_digits >= 3 || value >= 100 ? 0 : (value >= 10 || min_digits >= 2 ? 1 : 2);
-  for (int i = start; i < 3; i++)
-    draw_host_digit(screen, width, height, x + (i - start) * 6 * scale, y,
-                    digits[i], scale, color);
-}
-
 bool draw_host_wad_patch(int screen, int width, int height, const char* name,
                          int center_x, int bottom_y, int draw_h);
 
@@ -2743,14 +2696,7 @@ void draw_host_status_bar(int screen, int width, int height) {
   wad_numbers = draw_host_wad_patch(screen, width, height, "STTPRCNT",
                                     228 * status_scale, number_top + number_h,
                                     number_h) && wad_numbers;
-  if (!wad_numbers) {
-    draw_host_number(screen, width, height, width / 8 - 20, y + bar_h / 3,
-                     host_current_ammo(), 2, 3, 160);
-    draw_host_number(screen, width, height, width / 2 - 26, y + bar_h / 3,
-                     g_host_health, 3, 3, 176);
-    draw_host_number(screen, width, height, width * 7 / 8 - 32, y + bar_h / 3,
-                     g_host_armor, 2, 3, 80);
-  }
+  (void)wad_numbers;
 }
 
 void draw_host_flat_background(int screen, int width, int height, double px,
@@ -3214,64 +3160,6 @@ bool draw_host_wad_patch(int screen, int width, int height, const char* name,
   return true;
 }
 
-void draw_host_actor_sprite(int screen, int width, int height, int sx,
-                            int size, double dist,
-                            const vector<double>& zbuffer,
-                            const HostActor& actor) {
-  int x0 = sx - size / 2;
-  int x1 = sx + size / 2;
-  int y0 = height / 2 - size / 2;
-  int y1 = y0 + size;
-  int base = actor.flash > 0 ? 160 : host_actor_color(actor.type);
-  bool enemy = host_actor_is_enemy(actor.type);
-  bool health = host_actor_is_health(actor.type);
-  bool armor = host_actor_is_armor(actor.type);
-  bool ammo_or_weapon = host_actor_is_ammo(actor.type) || host_actor_is_weapon(actor.type);
-
-  for (int y = y0; y < y1; y++) {
-    if (y < 0 || y >= height)
-      continue;
-    for (int x = x0; x < x1; x++) {
-      if (x < 0 || x >= width || dist > zbuffer[x])
-        continue;
-
-      double nx = (x - sx) / (double)(size / 2 + 1);
-      double ny = (y - (y0 + size / 2)) / (double)(size / 2 + 1);
-      bool draw = false;
-      int shade = base + (((x >> 2) ^ (y >> 2)) & 3);
-
-      if (enemy) {
-        bool head = nx * nx + (ny + 0.55) * (ny + 0.55) < 0.18;
-        bool torso = fabs(nx) < 0.36 && ny > -0.28 && ny < 0.42;
-        bool arms = fabs(nx) > 0.32 && fabs(nx) < 0.76 && ny > -0.18 && ny < 0.22;
-        bool legs = ny > 0.34 && ny < 0.92 &&
-                    (fabs(nx - 0.18) < 0.14 || fabs(nx + 0.18) < 0.14);
-        draw = head || torso || arms || legs;
-        if (head)
-          shade = base + 5;
-        if (actor.flash > 0)
-          shade = 160 + (actor.flash & 3);
-      } else if (health) {
-        draw = fabs(nx) < 0.18 || fabs(ny) < 0.18;
-        shade = 32 + (((x + y) >> 2) & 7);
-      } else if (armor) {
-        draw = ny > -0.62 && ny < 0.72 && fabs(nx) < 0.55 - ny * 0.18;
-        shade = 112 + (((x + y) >> 2) & 7);
-      } else if (ammo_or_weapon) {
-        draw = fabs(nx) < 0.68 && fabs(ny) < 0.28;
-        if (host_actor_is_weapon(actor.type))
-          draw = draw || (ny < -0.15 && ny > -0.42 && fabs(nx) < 0.18);
-        shade = 176 + (((x >> 1) + (y >> 2)) & 3);
-      } else {
-        draw = fabs(nx) + fabs(ny) < 0.78;
-      }
-
-      if (draw)
-        write_elvm_byte(screen + y * width + x, shade);
-    }
-  }
-}
-
 void host_collect_pickups();
 
 void process_bfio_render_map_view(const vector<byte>& args) {
@@ -3464,11 +3352,8 @@ void process_bfio_render_map_view(const vector<byte>& args) {
       }
     }
 
-    if (!draw_host_wad_patch_sprite(screen, width, height, sx, size, dist,
-                                    zbuffer, actor)) {
-      draw_host_actor_sprite(screen, width, height, sx, size, dist, zbuffer,
-                             actor);
-    }
+    draw_host_wad_patch_sprite(screen, width, height, sx, size, dist, zbuffer,
+                               actor);
     if (actor.flash > 0)
       actor.flash--;
   }
@@ -3480,27 +3365,8 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   int weapon_h = height / 3;
   int weapon_bottom = height - status_h + 8;
   const char* idle_patch = host_weapon_patch_name(false);
-  if (!draw_host_wad_patch(screen, width, height, idle_patch, cx,
-                           weapon_bottom, weapon_h)) {
-    int gun_w = width / 7;
-    int gun_h = height / 5;
-    int gx0 = cx - gun_w / 2;
-    int gy0 = height - gun_h - 20;
-    for (int y = 0; y < gun_h; y++) {
-      for (int x = 0; x < gun_w; x++) {
-        int ax = x - gun_w / 2;
-        int color = -1;
-        if (y > gun_h / 3 && abs(ax) < gun_w / 5)
-          color = 72 + (y & 3);
-        if (y > gun_h / 2 && abs(ax) < gun_w / 3)
-          color = 96 + ((x + y) & 3);
-        if (y < gun_h / 2 && abs(ax) < gun_w / 10)
-          color = 88;
-        if (color >= 0)
-          write_elvm_byte(screen + (gy0 + y) * width + (gx0 + x), color);
-      }
-    }
-  }
+  draw_host_wad_patch(screen, width, height, idle_patch, cx, weapon_bottom,
+                      weapon_h);
 
   if (g_host_fire_flash > 0) {
     const char* fire_patch = host_weapon_patch_name(true);
