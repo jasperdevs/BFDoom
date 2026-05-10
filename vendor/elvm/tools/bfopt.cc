@@ -3295,6 +3295,18 @@ bool draw_host_wad_patch(int screen, int width, int height, const char* name,
 
 void host_collect_pickups();
 
+double host_screen_angle(int x, int width) {
+  if (width <= 1)
+    return 0.0;
+  double center = (width - 1) * 0.5;
+  return atan((x - center) / center);
+}
+
+int host_project_screen_x(double rel, int width) {
+  double center = (width - 1) * 0.5;
+  return static_cast<int>(floor(center + tan(rel) * center + 0.5));
+}
+
 void process_bfio_render_map_view(const vector<byte>& args) {
   g_last_render_args = args;
   int screen = read_u24_arg(args, 0);
@@ -3332,7 +3344,8 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   double px = g_host_player_x;
   double py = g_host_player_y;
   double base_angle = g_host_player_angle;
-  double fov = kPi / 2.4;
+  double fov = kPi / 2.0;
+  double clip_angle = fov * 0.5;
   ensure_host_actors();
   host_collect_pickups();
   host_update_enemies();
@@ -3350,7 +3363,7 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   draw_host_flat_background(screen, width, height, px, py, base_angle, fov);
 
   for (int sx = 0; sx < width; sx++) {
-    double ray_angle = base_angle + ((double)sx / (double)(width - 1) - 0.5) * fov;
+    double ray_angle = base_angle + host_screen_angle(sx, width);
     double rdx = cos(ray_angle);
     double rdy = sin(ray_angle);
     double best = 1.0e30;
@@ -3450,10 +3463,10 @@ void process_bfio_render_map_view(const vector<byte>& args) {
       continue;
 
     double rel = normalize_host_angle(atan2(dy, dx) - base_angle);
-    if (fabs(rel) > fov * 0.55)
+    if (fabs(rel) > clip_angle)
       continue;
 
-    int sx = static_cast<int>((rel / fov + 0.5) * (width - 1));
+    int sx = host_project_screen_x(rel, width);
     int size = static_cast<int>(height * 5.0 / (dist + 1.0));
     if (host_actor_is_enemy(actor.type)) {
       size = static_cast<int>(size * 1.4);
