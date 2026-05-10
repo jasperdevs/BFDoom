@@ -2054,14 +2054,36 @@ int host_enemy_attack_damage(const HostActor& actor, double dist,
     case 3001:
       if (dist <= 64.0)
         return (host_p_random() % 8 + 1) * 3;
-      return 0;
+      return (host_p_random() % 8 + 1) * 3;
     case 58:
     case 3002:
       if (dist <= 64.0)
         return ((host_p_random() % 10) + 1) * 4;
       return 0;
+    case 3005:
+      if (dist <= 64.0)
+        return (host_p_random() % 6 + 1) * 10;
+      return (host_p_random() % 8 + 1) * 5;
+    case 3003:
+      if (dist <= 64.0)
+        return (host_p_random() % 8 + 1) * 10;
+      return (host_p_random() % 8 + 1) * 8;
     default:
       return 0;
+  }
+}
+
+bool host_actor_has_ranged_attack(int type) {
+  switch (type) {
+    case 9:
+    case 65:
+    case 3001:
+    case 3003:
+    case 3004:
+    case 3005:
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -2105,7 +2127,7 @@ void host_update_enemies() {
     actor.angle = static_cast<int>(atan2(dy, dx) * 360.0 / (2.0 * kPi));
     if (actor.angle < 0)
       actor.angle += 360;
-    if ((dist <= 64.0 || actor.type == 9 || actor.type == 3004) &&
+    if ((dist <= 64.0 || host_actor_has_ranged_attack(actor.type)) &&
         line_of_sight && actor.attack_tics == 0 &&
         (g_host_tick + static_cast<int>(i) * 7) % 45 == 0) {
       actor.attack_tics = 24;
