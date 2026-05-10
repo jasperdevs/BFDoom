@@ -9,10 +9,31 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const WIDTH = 640;
 const HEIGHT = 400;
-const WINDOW_WIDTH = 854;
-const WINDOW_HEIGHT = 560;
+const WINDOW_WIDTH = 960;
+const WINDOW_HEIGHT = 600;
 const FRAME_BYTES = WIDTH * HEIGHT * 3;
 const PACKET_BYTES = 16 + FRAME_BYTES;
+
+if (process.platform === "win32" && !process.argv.includes("--browser")) {
+  const script = path.join(ROOT, "tools", "play-bfdoom-native-window.ps1");
+  const child = spawn("powershell.exe", [
+    "-STA",
+    "-NoProfile",
+    "-ExecutionPolicy",
+    "Bypass",
+    "-File",
+    script,
+    "-Root",
+    ROOT,
+  ], { stdio: "inherit" });
+  child.on("exit", (code, signal) => {
+    if (signal) {
+      process.kill(process.pid, signal);
+      return;
+    }
+    process.exit(code ?? 0);
+  });
+} else {
 
 const clients = new Set();
 let lastFrame = null;
@@ -254,7 +275,6 @@ function launchBrowser(url) {
       `--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`,
       `--user-data-dir=${profileDir}`,
       "--force-device-scale-factor=1",
-      "--start-fullscreen",
     ], {
       detached: true,
       stdio: "ignore",
@@ -347,3 +367,4 @@ server.listen(0, "127.0.0.1", () => {
   console.log(`BFDoom window: ${url}`);
   launchBrowser(url);
 });
+}
