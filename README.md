@@ -1,10 +1,6 @@
 <h1 align="center">BFDoom</h1>
 
-<p align="center">Doom compiled to Brainfuck, with a playable WAD-backed host path.</p>
-
-<p align="center">
-  <strong>Brainfuck</strong> / <strong>DoomGeneric</strong> / <strong>ELVM</strong> / <strong>WAD-backed</strong>
-</p>
+<p align="center">Doom compiled to Brainfuck and playable in a small desktop window.</p>
 
 <p align="center">
   <img src="docs/bfdoom-preview.png" alt="BFDoom gameplay preview" width="720" />
@@ -14,7 +10,13 @@
   <img src="docs/e1m1-route-map.png" alt="E1M1 route map" width="720" />
 </p>
 
-## Quickstart
+## Play
+
+```bash
+npx @jasperdevs/bfdoom
+```
+
+From a clone:
 
 ```bash
 git clone https://github.com/jasperdevs/BFDoom.git
@@ -22,90 +24,40 @@ cd BFDoom
 npm run play:window
 ```
 
-From npm:
-
-```bash
-npx @jasperdevs/bfdoom
-```
-
-or:
-
-```bash
-npm install -g @jasperdevs/bfdoom
-bfdoom
-```
-
-Terminal mode is still available:
-
-```bash
-npm run play:bfdoom
-```
-
-The main Brainfuck artifact is:
-
-```text
-programs/bfdoom-linked.bf.gz
-```
-
-On first run it restores to:
-
-```text
-programs/bfdoom-linked.bf
-```
-
-That raw file is not committed because it is about 550 MB.
+The main Brainfuck program is `programs/bfdoom-linked.bf.gz`. On first run it expands to `programs/bfdoom-linked.bf`; the raw file is about 550 MB, so only the compressed artifact is committed.
 
 ## Controls
 
-- `W` / `S` or Up / Down: move
-- `A` / `D` or Left / Right: turn
-- `Space` / `F`: fire
-- `Tab`: automap
-- `1`-`7`: switch owned weapons
-- `E`: use
-- `Q` / `Esc`: quit
-
-## Window Mode
-
-`npm run play:window` opens a bounded resizable pixel window and streams framebuffer packets from the Brainfuck runner. The window only paints pixels and forwards keyboard input; it is not a JS Doom rewrite.
-
-This is the honest current boundary: the generated Brainfuck artifact is real, but the playable path still uses `vendor/elvm/tools/bfopt.cc` as a WAD-backed host bridge for rendering, input, and gameplay state while the full 1:1 port is being closed.
+| Key | Action |
+| --- | --- |
+| `W` / `S`, Up / Down | Move |
+| `A` / `D`, Left / Right | Turn |
+| `Space` / `F` | Fire |
+| `E` | Use |
+| `Tab` | Automap |
+| `1`-`7` | Switch weapons |
+| `Q` / `Esc` | Quit |
 
 ## Setup
 
-Requirements:
-
-- Node.js 20+
-- Windows with WSL, or Linux with `bash`
-- `make`, `g++`, `gzip`, and standard build tools
-
-On Ubuntu/WSL:
+Requires Node.js 20+. On Windows, install WSL. On Linux/WSL, install basic build tools:
 
 ```bash
 sudo apt update
 sudo apt install -y build-essential make gzip
 ```
 
-## Verify
+## Test
 
 ```bash
 npm run test:bfdoom-host
 npm test
 ```
 
-## What Is Here
-
-- `programs/bfdoom-linked.bf.gz`: generated Brainfuck Doom artifact
-- `data/doom1.wad.gz`: Doom shareware IWAD archive used by the host path
-- `vendor/DOOM`: original Doom source
-- `vendor/doomgeneric`: portable Doom source tree
-- `vendor/elvm`: compiler path used to emit Brainfuck
-- `vendor/elvm/tools/bfopt.cc`: optimized Brainfuck runner and current playable host bridge
-
 ## Status
 
-BFDoom is playable, WAD-backed, and real Brainfuck-port work. It is not a finished 1:1 Doom replacement yet. The largest remaining gaps are full renderer parity, sound, menus, and the complete Doom monster/state runtime.
+BFDoom is playable and still being brought closer to Doom. The biggest unfinished pieces are sound, menus, and full engine/rendering parity. Technical notes live in [docs/brainfuck-doom-port.md](docs/brainfuck-doom-port.md).
 
 ## License
 
-Doom and DoomGeneric code are GPL-2.0. ELVM is MIT licensed. See the vendor license files for upstream details.
+GPL-2.0-only. Doom and DoomGeneric are GPL-2.0; ELVM is MIT. See the vendor license files for upstream details.

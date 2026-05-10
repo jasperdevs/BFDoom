@@ -1,16 +1,15 @@
 {
   "name": "@jasperdevs/bfdoom",
   "version": "0.1.0",
-  "description": "Doom compiled to Brainfuck with a WAD-backed playable host path.",
+  "description": "Doom compiled to Brainfuck and playable in a small desktop window.",
   "license": "GPL-2.0-only",
   "private": false,
   "keywords": [
     "brainfuck",
     "doom",
-    "doomgeneric",
-    "elvm",
     "esolang",
-    "wad"
+    "game",
+    "retro"
   ],
   "homepage": "https://github.com/jasperdevs/BFDoom#readme",
   "bugs": {
