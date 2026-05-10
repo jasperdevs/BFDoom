@@ -1218,7 +1218,7 @@ double host_actor_radius(int type) {
 }
 
 bool host_actor_is_weapon(int type) {
-  return 2001 <= type && type <= 2006;
+  return (2001 <= type && type <= 2006) || type == 82;
 }
 
 int host_weapon_slot_from_actor(int type) {
@@ -1235,6 +1235,8 @@ int host_weapon_slot_from_actor(int type) {
       return 1;
     case 2006:
       return 7;
+    case 82:
+      return 3;
     default:
       return 0;
   }
@@ -1250,6 +1252,10 @@ const char* host_weapon_patch_name(bool firing) {
       return firing ? "CHGFA0" : "CHGGA0";
     case 5:
       return firing ? "MISGB0" : "MISGA0";
+    case 6:
+      return firing ? "PLSFA0" : "PLSGA0";
+    case 7:
+      return firing ? "BFGFA0" : "BFGGA0";
     default:
       return firing ? "PISFA0" : "PISGA0";
   }
@@ -1288,6 +1294,14 @@ int host_weapon_damage() {
       return host_melee_damage();
     case 5:
       return 100;
+    case 6:
+      return (host_p_random() % 8 + 1) * 5;
+    case 7: {
+      int damage = 0;
+      for (int i = 0; i < 15; i++)
+        damage += (host_p_random() & 7) + 1;
+      return damage;
+    }
     default:
       return host_bullet_damage();
   }
@@ -1346,6 +1360,9 @@ void host_add_weapon_ammo(int type) {
     case 2004:
     case 2006:
       host_add_ammo(HOST_AMMO_CELL, 40);
+      break;
+    case 82:
+      host_add_ammo(HOST_AMMO_SHELL, 8);
       break;
     default:
       break;
@@ -3088,8 +3105,14 @@ const char* host_actor_patch_name(int type) {
       return "MGUNA0";
     case 2003:
       return "LAUNA0";
+    case 2004:
+      return "PLASA0";
     case 2005:
       return "CSAWA0";
+    case 2006:
+      return "BFUGA0";
+    case 82:
+      return "SGN2A0";
     case 2007:
       return "CLIPA0";
     case 2008:
@@ -5159,7 +5182,8 @@ void host_fire_hitscan(const vector<byte>& render_args) {
     return;
   }
 
-  bool accurate = g_host_weapon == 2 || g_host_weapon == 4;
+  bool accurate = g_host_weapon == 2 || g_host_weapon == 4 ||
+                  g_host_weapon == 6 || g_host_weapon == 7;
   double angle = g_host_player_angle;
   if (!accurate)
     angle = normalize_host_angle(angle + host_doom_angle_spread(18));
