@@ -1,6 +1,6 @@
 {
   "name": "@jasperdevs/bfdoom",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Doom compiled to Brainfuck and playable in a small desktop window.",
   "license": "GPL-2.0-only",
   "private": false,

@@ -23,6 +23,13 @@ SOURCES=(
 
 mkdir -p "$ROOT/build" "$ROOT/programs"
 
+strip_to_brainfuck() {
+  local file="$1"
+  local tmp="$file.tmp"
+  LC_ALL=C tr -cd '><+.,[]-' < "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
 {
   printf '#include "../vendor/elvm/libc/_builtin.h"\n'
   printf '#include "../ports/elvm-libc/runtime.c"\n'
@@ -35,5 +42,6 @@ mkdir -p "$ROOT/build" "$ROOT/programs"
 cd "$ELVM"
 ./out/8cc -S -D__eir__ -DINT_MIN=-16777216 -DSHRT_MAX=32767 -DEISDIR=21 -DSEEK_SET=0 -DSEEK_END=2 -I"$PORT_LIBC" -I. -Ilibc -Iout -I"$DOOM" -o "$EIR" "$AMALGAM"
 ./out/elc -bf "$EIR" > "$BF"
+strip_to_brainfuck "$BF"
 
 printf 'Generated %s\n' "$BF"

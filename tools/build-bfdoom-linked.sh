@@ -11,6 +11,13 @@ BF="$ROOT/programs/bfdoom-linked.bf"
 
 mkdir -p "$ROOT/build" "$ROOT/programs"
 
+strip_to_brainfuck() {
+  local file="$1"
+  local tmp="$file.tmp"
+  LC_ALL=C tr -cd '><+.,[]-' < "$file" > "$tmp"
+  mv "$tmp" "$file"
+}
+
 cd "$ELVM"
 if [ ! -x ./out/8cc ] || [ ! -x ./out/elc ] || [ ! -x ./out/bfopt ]; then
   make out/8cc out/elc out/bfopt >/dev/null
@@ -30,5 +37,6 @@ fi
 
 cd "$ELVM"
 ./out/elc -bf "$LINKED_EIR" > "$BF"
+strip_to_brainfuck "$BF"
 
 printf 'Generated %s\n' "$BF"

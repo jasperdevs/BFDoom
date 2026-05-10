@@ -16,7 +16,7 @@ This is the real porting route for a 1:1 Doom target:
 - `tools/elvm-doom-random.sh` compiles the real Doom `m_random.c` module to Brainfuck and verifies its output.
 - `tools/probe-doomgeneric.sh` compiles all 81 required DoomGeneric source files to ELVM IR.
 - `tools/build-bfdoom-linked.sh` links those EIR files and generates `programs/bfdoom-linked.bf`.
-- `programs/bfdoom-linked.bf` is 550,301,726 bytes, with 518,406,616 Brainfuck instructions.
+- `programs/bfdoom-linked.bf` is 518,406,616 bytes of Brainfuck instructions.
 - `build/bfdoom-linked.eir` has 918,947 IR instructions.
 - `data/DOOM1.WAD` is present, starts with `IWAD`, is 4,196,020 bytes, and has SHA-256 `1D7D43BE501E67D927E415E0B8F3E29C3BF33075E859721816F652A526CAC771`.
 - `tools/elvm-bfio-size.sh` verifies that generated Brainfuck can ask the patched BF host for the WAD size and get the correct response.
