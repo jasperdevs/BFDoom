@@ -1,3 +1,4 @@
+.gitattributes text eol=lf
 *.sh text eol=lf
 *.mjs text eol=lf
 *.c text eol=lf
@@ -9,3 +10,13 @@
 *.gz binary
 *.png binary
 *.WAD binary
+
+# Keep GitHub's language bar focused on the shipped Brainfuck program.
+docs/** linguist-documentation
+data/** linguist-vendored
+vendor/** linguist-vendored
+src/** linguist-generated
+test/** linguist-generated
+tools/** linguist-generated
+*.json linguist-generated
+*.md linguist-documentation
