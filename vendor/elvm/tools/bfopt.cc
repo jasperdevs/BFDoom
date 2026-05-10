@@ -148,6 +148,7 @@ int g_host_ammo[HOST_AMMO_COUNT] = {50, 0, 0, 0};
 int g_host_ammo_max[HOST_AMMO_COUNT] = {200, 50, 50, 300};
 int g_host_health = 100;
 int g_host_armor = 0;
+int g_host_armor_type = 0;
 int g_host_tick;
 int g_host_prndindex;
 int g_host_damage_flash;
@@ -1461,17 +1462,22 @@ void host_apply_damage(int damage) {
   if (damage <= 0 || g_host_health <= 0)
     return;
 
-  int absorbed = damage / 3;
-  if (absorbed > g_host_armor)
-    absorbed = g_host_armor;
-  g_host_armor -= absorbed;
-  damage -= absorbed;
+  if (g_host_armor_type > 0 && g_host_armor > 0) {
+    int absorbed = g_host_armor_type == 1 ? damage / 3 : damage / 2;
+    if (absorbed > g_host_armor) {
+      absorbed = g_host_armor;
+      g_host_armor_type = 0;
+    }
+    g_host_armor -= absorbed;
+    damage -= absorbed;
+  }
   g_host_health -= damage;
   if (g_host_health < 0)
     g_host_health = 0;
   g_host_damage_flash = 4;
   if (!isatty(STDERR_FILENO))
-    fprintf(stderr, "damage health=%d armor=%d\n", g_host_health, g_host_armor);
+    fprintf(stderr, "damage health=%d armor=%d armortype=%d\n",
+            g_host_health, g_host_armor, g_host_armor_type);
 }
 
 void ensure_host_actors() {
@@ -4548,13 +4554,19 @@ void host_collect_pickups() {
       if (g_host_health > cap)
         g_host_health = cap;
     } else if (host_actor_is_armor(actor.type)) {
-      int value = actor.type == 2019 ? 200 : actor.type == 2018 ? 100 : 1;
       if (actor.type == 2015) {
-        g_host_armor += value;
+        g_host_armor++;
         if (g_host_armor > 200)
           g_host_armor = 200;
-      } else if (g_host_armor < value) {
-        g_host_armor = value;
+        if (g_host_armor_type == 0)
+          g_host_armor_type = 1;
+      } else {
+        int armor_type = actor.type == 2019 ? 2 : 1;
+        int armor_points = armor_type * 100;
+        if (g_host_armor >= armor_points)
+          continue;
+        g_host_armor_type = armor_type;
+        g_host_armor = armor_points;
       }
     } else {
       continue;
@@ -4563,8 +4575,10 @@ void host_collect_pickups() {
     actor.alive = false;
     g_host_pickup_flash = 5;
     if (!isatty(STDERR_FILENO)) {
-      fprintf(stderr, "pickup type=%d health=%d armor=%d ammo=%d\n",
-              actor.type, g_host_health, g_host_armor, host_current_ammo());
+      fprintf(stderr,
+              "pickup type=%d health=%d armor=%d armortype=%d ammo=%d\n",
+              actor.type, g_host_health, g_host_armor, g_host_armor_type,
+              host_current_ammo());
     }
   }
 }
