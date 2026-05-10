@@ -67,9 +67,9 @@ That raw file is not committed because it is about 550 MB.
 
 ## Window Mode
 
-`npm run play:window` opens a bounded resizable pixel window and streams framebuffer packets from the Brainfuck runner. The browser shell only paints pixels and forwards keyboard input.
+`npm run play:window` opens a bounded resizable pixel window and streams framebuffer packets from the Brainfuck runner. The window only paints pixels and forwards keyboard input; it is not a JS Doom rewrite.
 
-This is the honest current boundary: the generated Brainfuck artifact is real, but the playable path still uses `vendor/elvm/tools/bfopt.cc` as a WAD-backed host bridge for rendering, input, and gameplay state while the full 1:1 port is being closed. The window is an I/O backend, not a JS Doom rewrite.
+This is the honest current boundary: the generated Brainfuck artifact is real, but the playable path still uses `vendor/elvm/tools/bfopt.cc` as a WAD-backed host bridge for rendering, input, and gameplay state while the full 1:1 port is being closed.
 
 ## Setup
 

@@ -22,7 +22,7 @@ This is the real porting route for a 1:1 Doom target:
 - `tools/elvm-bfio-size.sh` verifies that generated Brainfuck can ask the patched BF host for the WAD size and get the correct response.
 - `npm run play:bfdoom` uses the generated Brainfuck artifact, the optimized BF runner, and a saved VM snapshot after Doom init.
 - The current playable path reads E1M1 lines, sectors, texture names, flats, player starts, actors, pickups, and sprite patches from `DOOM1.WAD`.
-- `npm run test:bfdoom-host` verifies first-frame startup, scripted movement/fire, sprite-facing capture, use/door input, arrow-key decoding, and a deterministic pickup route.
+- `npm run test:bfdoom-host` verifies first-frame startup, scripted movement/fire, sprite-facing capture, use/door input, arrow-key decoding, held-key window input, automap, and a deterministic pickup route.
 
 ## Current Play Path
 
@@ -39,12 +39,12 @@ Implemented in the playable path:
 
 - E1M1 WAD-coordinate wall rendering with texture-derived colors and sector light.
 - WAD-backed movement, sight, and pickup blocking from line flags plus front/back sector floor and ceiling openings.
-- WAD texture sampling for walls and WAD flat sampling for floor/ceiling.
+- WAD texture sampling for walls, WAD flat sampling for floor/ceiling, and Doom-style 90-degree tangent camera projection.
 - Player start loaded from E1M1 THINGS.
 - Enemies and pickups loaded from E1M1 THINGS with Doom's medium-skill single-player spawn filtering and ambush flags preserved.
 - Enemy wake behavior now uses THING angles, front-facing sight checks, sound alerts, and the ambush flag instead of waking every monster immediately.
 - WAD patch sprites for common enemies, weapons, ammo, health, armor, multiple weapon views, Doom source enemy identities/health, angle-dependent monster rotations, and source-shaped standing/chase/attack/pain/death frame selection.
-- Movement, turning, arrow-key input, firing, use, automap toggle, weapon switching, pickups, separate bullet/shell/rocket/cell ammo pools, Doom `MISSILERANGE` bullet reach, source-radius enemy hit tests, enemy health, enemy attacks, armor absorption, hit feedback, damage feedback, exit activation, map advancement, WAD-backed HUD, and WAD-backed weapon view.
+- Movement, turning, held-key window input, arrow-key input, firing, use, automap toggle, weapon switching, pickups, separate bullet/shell/rocket/cell ammo pools, Doom `MISSILERANGE` bullet reach, source-radius enemy hit tests, enemy health, enemy attacks, armor class absorption, keycards/skulls, locked door checks, backpack ammo max, megasphere, invulnerability, berserk fist damage, hit feedback, damage feedback, exit activation, map advancement, WAD-backed HUD, and WAD-backed weapon view.
 
 ## Host Boundary
 
