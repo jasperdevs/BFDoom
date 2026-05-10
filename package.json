@@ -1,6 +1,6 @@
 {
   "name": "@jasperdevs/bfdoom",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Doom compiled to Brainfuck and playable in a small desktop window.",
   "license": "GPL-2.0-only",
   "private": false,
@@ -19,6 +19,12 @@
     "type": "git",
     "url": "git+https://github.com/jasperdevs/BFDoom.git"
   },
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "bfdoom": "tools/play-bfdoom-window.mjs"
   },
@@ -27,6 +33,8 @@
     "docs/bfdoom-brainfuck.png",
     "docs/bfdoom-preview.png",
     "docs/brainfuck-doom-port.md",
+    "programs/bfdoom-linked.bf.bfocache.gz",
+    "programs/bfdoom-linked.bf.bfosnap.gz",
     "programs/bfdoom-linked.bf.gz",
     "programs/braindoom.bf",
     "src/",
