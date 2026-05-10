@@ -83,6 +83,7 @@ struct HostActor {
   bool ambush;
   bool awake;
   bool alive;
+  bool dropped;
 };
 
 struct HostLine {
@@ -1156,6 +1157,7 @@ int fixed_from_i16(int value) {
 bool host_actor_is_enemy(int type) {
   switch (type) {
     case 9:
+    case 65:
     case 58:
     case 3001:
     case 3002:
@@ -1185,6 +1187,8 @@ int host_actor_start_health(int type) {
       return 30;
     case 3004:
       return 20;
+    case 65:
+      return 70;
     case 3001:
       return 60;
     case 58:
@@ -1206,6 +1210,7 @@ double host_actor_radius(int type) {
     case 2035:
       return 10.0;
     case 9:
+    case 65:
     case 3001:
     case 3004:
       return 20.0;
@@ -1352,13 +1357,13 @@ void host_add_ammo(int ammo_type, int amount) {
     g_host_ammo[ammo_type] = g_host_ammo_max[ammo_type];
 }
 
-void host_add_weapon_ammo(int type) {
+void host_add_weapon_ammo(int type, bool dropped) {
   switch (type) {
     case 2001:
-      host_add_ammo(HOST_AMMO_SHELL, 8);
+      host_add_ammo(HOST_AMMO_SHELL, dropped ? 4 : 8);
       break;
     case 2002:
-      host_add_ammo(HOST_AMMO_BULLET, 20);
+      host_add_ammo(HOST_AMMO_BULLET, dropped ? 10 : 20);
       break;
     case 2003:
       host_add_ammo(HOST_AMMO_ROCKET, 2);
@@ -1368,17 +1373,17 @@ void host_add_weapon_ammo(int type) {
       host_add_ammo(HOST_AMMO_CELL, 40);
       break;
     case 82:
-      host_add_ammo(HOST_AMMO_SHELL, 8);
+      host_add_ammo(HOST_AMMO_SHELL, dropped ? 4 : 8);
       break;
     default:
       break;
   }
 }
 
-void host_add_pickup_ammo(int type) {
+void host_add_pickup_ammo(int type, bool dropped) {
   switch (type) {
     case 2007:
-      host_add_ammo(HOST_AMMO_BULLET, 10);
+      host_add_ammo(HOST_AMMO_BULLET, dropped ? 5 : 10);
       break;
     case 2048:
       host_add_ammo(HOST_AMMO_BULLET, 50);
@@ -1705,6 +1710,7 @@ void ensure_host_actors() {
     actor.ambush = (options & 8) != 0;
     actor.awake = false;
     actor.alive = true;
+    actor.dropped = false;
     g_host_actors.push_back(actor);
     g_host_actor_spawned++;
     if (actor.ambush)
@@ -2039,6 +2045,7 @@ int host_enemy_attack_damage(const HostActor& actor, double dist,
       }
       return damage;
     }
+    case 65:
     case 3004:
       if (host_enemy_hits_player(actor, 20))
         return ((host_p_random() % 5) + 1) * 3;
@@ -3253,6 +3260,8 @@ const char* host_actor_patch_name(int type) {
       return host_cycled_patch_name("BAR1", "AB", 6);
     case 9:
       return "SPOSA1";
+    case 65:
+      return "CPOSA1";
     case 3004:
       return "POSSA1";
     case 3001:
@@ -3341,6 +3350,8 @@ const char* host_actor_sprite_prefix(int type) {
   switch (type) {
     case 9:
       return "SPOS";
+    case 65:
+      return "CPOS";
     case 3004:
       return "POSS";
     case 3001:
@@ -3375,6 +3386,8 @@ const char* host_actor_death_frames(int type) {
     case 9:
     case 3004:
       return "HIJKL";
+    case 65:
+      return "HIJKLMN";
     case 3001:
       return "IJKLM";
     case 58:
@@ -3394,6 +3407,7 @@ const char* host_actor_death_frames(int type) {
 char host_actor_pain_frame(int type) {
   switch (type) {
     case 9:
+    case 65:
     case 3004:
       return 'G';
     case 3005:
@@ -3410,6 +3424,7 @@ char host_actor_pain_frame(int type) {
 const char* host_actor_attack_frames(int type) {
   switch (type) {
     case 9:
+    case 65:
     case 3004:
       return "EFE";
     default:
@@ -5016,9 +5031,9 @@ void host_collect_pickups() {
         g_host_weapon_owned[slot] = true;
         g_host_weapon = slot;
       }
-      host_add_weapon_ammo(actor.type);
+      host_add_weapon_ammo(actor.type, actor.dropped);
     } else if (host_actor_is_ammo(actor.type)) {
-      host_add_pickup_ammo(actor.type);
+      host_add_pickup_ammo(actor.type, actor.dropped);
     } else if (host_actor_is_health(actor.type)) {
       int cap = actor.type == 2013 ? 200 : 100;
       int gain = actor.type == 2011 ? 10 : actor.type == 2012 ? 25 : 1;
@@ -5196,6 +5211,45 @@ void host_alert_enemies_from_sound() {
   }
 }
 
+int host_actor_drop_type(int type) {
+  switch (type) {
+    case 3004:
+      return 2007;
+    case 9:
+      return 2001;
+    case 65:
+      return 2002;
+    default:
+      return 0;
+  }
+}
+
+void host_spawn_dropped_item(const HostActor& source) {
+  int drop_type = host_actor_drop_type(source.type);
+  if (!drop_type)
+    return;
+
+  HostActor item;
+  item.x = source.x;
+  item.y = source.y;
+  item.angle = source.angle;
+  item.type = drop_type;
+  item.options = 0;
+  item.health = host_actor_start_health(drop_type);
+  item.flash = 0;
+  item.attack_tics = 0;
+  item.death_tics = 0;
+  item.ambush = false;
+  item.awake = false;
+  item.alive = true;
+  item.dropped = true;
+  g_host_actors.push_back(item);
+  if (!isatty(STDERR_FILENO)) {
+    fprintf(stderr, "drop source=%d item=%d x=%.1f y=%.1f\n", source.type,
+            drop_type, source.x, source.y);
+  }
+}
+
 void host_explode_barrel(int barrel_index) {
   if (barrel_index < 0 || barrel_index >= (int)g_host_actors.size())
     return;
@@ -5211,6 +5265,7 @@ void host_explode_barrel(int barrel_index) {
       host_apply_damage(damage);
   }
 
+  vector<HostActor> dropped_sources;
   for (size_t i = 0; i < g_host_actors.size(); i++) {
     if ((int)i == barrel_index)
       continue;
@@ -5233,8 +5288,13 @@ void host_explode_barrel(int barrel_index) {
       actor.death_tics = 1;
       if (host_actor_is_barrel(actor.type))
         host_explode_barrel((int)i);
+      else
+        dropped_sources.push_back(actor);
     }
   }
+
+  for (size_t i = 0; i < dropped_sources.size(); i++)
+    host_spawn_dropped_item(dropped_sources[i]);
 
   if (!isatty(STDERR_FILENO))
     fprintf(stderr, "barrel_explode index=%d\n", barrel_index);
@@ -5314,12 +5374,22 @@ bool host_fire_hitscan_shot(double angle,
     g_host_actors[best].health -= damage;
     g_host_actors[best].flash = 3;
     if (g_host_actors[best].health <= 0) {
+      int killed_type = g_host_actors[best].type;
+      int killed_health = g_host_actors[best].health;
+      HostActor killed_actor = g_host_actors[best];
       g_host_actors[best].alive = false;
       g_host_actors[best].flash = 0;
       g_host_actors[best].attack_tics = 0;
       g_host_actors[best].death_tics = 1;
-      if (host_actor_is_barrel(g_host_actors[best].type))
+      if (host_actor_is_barrel(killed_type))
         host_explode_barrel(best);
+      else
+        host_spawn_dropped_item(killed_actor);
+      if (!isatty(STDERR_FILENO)) {
+        fprintf(stderr, "hit type=%d damage=%d health=%d alive=0\n",
+                killed_type, damage, killed_health);
+      }
+      return true;
     }
     if (!isatty(STDERR_FILENO)) {
       fprintf(stderr, "hit type=%d damage=%d health=%d alive=%d\n",
