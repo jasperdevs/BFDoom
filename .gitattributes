@@ -14,6 +14,8 @@
 # Keep GitHub's language bar focused on the shipped Brainfuck program.
 docs/** linguist-documentation
 data/** linguist-vendored
+examples/** linguist-generated
+ports/** linguist-generated
 vendor/** linguist-vendored
 src/** linguist-generated
 test/** linguist-generated
