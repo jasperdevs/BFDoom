@@ -149,6 +149,7 @@ int g_host_ammo_max[HOST_AMMO_COUNT] = {200, 50, 50, 300};
 int g_host_health = 100;
 int g_host_armor = 0;
 int g_host_armor_type = 0;
+bool g_host_cards[6] = {false, false, false, false, false, false};
 int g_host_tick;
 int g_host_prndindex;
 int g_host_damage_flash;
@@ -1407,6 +1408,38 @@ bool host_actor_is_armor(int type) {
   return type == 2015 || type == 2018 || type == 2019;
 }
 
+int host_actor_card_index(int type) {
+  switch (type) {
+    case 5:
+      return 0;
+    case 6:
+      return 1;
+    case 13:
+      return 2;
+    case 40:
+      return 3;
+    case 39:
+      return 4;
+    case 38:
+      return 5;
+    default:
+      return -1;
+  }
+}
+
+bool host_actor_is_key(int type) {
+  return host_actor_card_index(type) >= 0;
+}
+
+int host_card_mask() {
+  int mask = 0;
+  for (int i = 0; i < 6; i++) {
+    if (g_host_cards[i])
+      mask |= 1 << i;
+  }
+  return mask;
+}
+
 int host_actor_color(int type) {
   if (host_actor_is_enemy(type))
     return type == 3001 ? 72 : type == 3002 ? 64 : type == 3004 ? 48 : 56;
@@ -1416,6 +1449,8 @@ int host_actor_color(int type) {
     return 32;
   if (host_actor_is_armor(type))
     return 112;
+  if (host_actor_is_key(type))
+    return type == 5 || type == 40 ? 200 : type == 6 || type == 39 ? 160 : 32;
   return 160;
 }
 
@@ -1439,6 +1474,12 @@ bool host_actor_should_render(int type) {
     case 2015:
     case 2018:
     case 2019:
+    case 5:
+    case 6:
+    case 13:
+    case 38:
+    case 39:
+    case 40:
     case 2045:
     case 2046:
     case 2047:
@@ -1581,12 +1622,50 @@ bool host_line_special_is_door(int special) {
     case 33:
     case 34:
     case 63:
+    case 99:
     case 114:
     case 117:
+    case 133:
+    case 134:
+    case 135:
+    case 136:
+    case 137:
       return true;
     default:
       return false;
   }
+}
+
+int host_line_required_key_color(int special) {
+  switch (special) {
+    case 26:
+    case 32:
+    case 99:
+    case 133:
+      return 0;
+    case 27:
+    case 34:
+    case 136:
+    case 137:
+      return 1;
+    case 28:
+    case 33:
+    case 134:
+    case 135:
+      return 2;
+    default:
+      return -1;
+  }
+}
+
+bool host_has_key_color(int color) {
+  if (color == 0)
+    return g_host_cards[0] || g_host_cards[3];
+  if (color == 1)
+    return g_host_cards[1] || g_host_cards[4];
+  if (color == 2)
+    return g_host_cards[2] || g_host_cards[5];
+  return true;
 }
 
 bool host_line_special_is_exit(int special) {
@@ -2927,6 +3006,18 @@ const char* host_actor_patch_name(int type) {
       return "ARM1A0";
     case 2019:
       return "ARM2A0";
+    case 5:
+      return "BKEYA0";
+    case 6:
+      return "YKEYA0";
+    case 13:
+      return "RKEYA0";
+    case 38:
+      return "RSKUA0";
+    case 39:
+      return "YSKUA0";
+    case 40:
+      return "BSKUA0";
     case 2046:
       return "BROKA0";
     case 2048:
@@ -4581,6 +4672,10 @@ void host_collect_pickups() {
         g_host_armor_type = armor_type;
         g_host_armor = armor_points;
       }
+    } else if (host_actor_is_key(actor.type)) {
+      int card = host_actor_card_index(actor.type);
+      if (0 <= card && card < 6)
+        g_host_cards[card] = true;
     } else {
       continue;
     }
@@ -4589,9 +4684,9 @@ void host_collect_pickups() {
     g_host_pickup_flash = 5;
     if (!isatty(STDERR_FILENO)) {
       fprintf(stderr,
-              "pickup type=%d health=%d armor=%d armortype=%d ammo=%d\n",
+              "pickup type=%d health=%d armor=%d armortype=%d ammo=%d keys=%02x\n",
               actor.type, g_host_health, g_host_armor, g_host_armor_type,
-              host_current_ammo());
+              host_current_ammo(), host_card_mask());
     }
   }
 }
@@ -4632,6 +4727,16 @@ void host_use_action() {
       if (!isatty(STDERR_FILENO)) {
         fprintf(stderr, "exit activated_line=%d map=%s advanced=%d\n", best,
                 g_host_map_name.c_str(), advanced ? 1 : 0);
+      }
+      return;
+    }
+
+    int key_color = host_line_required_key_color(g_host_lines[best].special);
+    if (key_color >= 0 && !host_has_key_color(key_color)) {
+      g_host_damage_flash = 2;
+      if (!isatty(STDERR_FILENO)) {
+        fprintf(stderr, "use locked_line=%d key_color=%d keys=%02x\n", best,
+                key_color, host_card_mask());
       }
       return;
     }
