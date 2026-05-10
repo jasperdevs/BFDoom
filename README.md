@@ -20,6 +20,13 @@
 npx @jasperdevs/bfdoom
 ```
 
+Or install it:
+
+```bash
+npm install -g @jasperdevs/bfdoom
+bfdoom
+```
+
 From a clone:
 
 ```bash
@@ -28,7 +35,7 @@ cd BFDoom
 npm run play:window
 ```
 
-The main Brainfuck program is `programs/bfdoom-linked.bf.gz`. On first run it expands to `programs/bfdoom-linked.bf`; the raw file is about 550 MB, so only the compressed artifact is committed.
+The main Brainfuck program is `programs/bfdoom-linked.bf.gz`. On first run it expands to `programs/bfdoom-linked.bf`; the raw file is about 518 MB, so only the compressed artifact is committed.
 
 ## Controls
 
