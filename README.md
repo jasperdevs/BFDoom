@@ -4,6 +4,8 @@ Doom compiled to Brainfuck, with a WAD-backed playable host path for testing the
 
 ![BFDoom preview](docs/bfdoom-preview.png)
 
+![E1M1 WAD route map](docs/e1m1-route-map.png)
+
 ## Status
 
 BFDoom is a real porting workbench, not a clean-room Doom clone. The repo contains a DoomGeneric source tree compiled through ELVM into Brainfuck, plus a patched Brainfuck host runner that keeps startup usable while more of the original Doom runtime is ported across.
