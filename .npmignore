@@ -1,0 +1,14 @@
+build/
+.omx/
+
+programs/*.bfocache
+programs/*.bfosnap
+programs/bfdoom-linked.bf
+!programs/bfdoom-linked.bf.gz
+
+data/DOOM1.WAD
+!data/doom1.wad.gz
+
+vendor/elvm/out/
+vendor/elvm/**/*.d
+vendor/elvm/**/*.o

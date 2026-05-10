@@ -22,6 +22,19 @@ cd BFDoom
 npm run play:window
 ```
 
+After the npm package is published, the short path is:
+
+```bash
+npx bfdoom
+```
+
+or:
+
+```bash
+npm install -g bfdoom
+bfdoom
+```
+
 Terminal mode is still available:
 
 ```bash
@@ -53,7 +66,7 @@ That raw file is not committed because it is about 550 MB.
 
 ## Window Mode
 
-`npm run play:window` opens a real pixel window and streams framebuffer packets from the Brainfuck runner. The browser shell only paints pixels and forwards keyboard input.
+`npm run play:window` opens a fullscreen pixel window and streams framebuffer packets from the Brainfuck runner. The browser shell only paints pixels and forwards keyboard input.
 
 This is the honest current boundary: the generated Brainfuck artifact is real, but the playable path still uses `vendor/elvm/tools/bfopt.cc` as a WAD-backed host bridge for rendering, input, and gameplay state while the full 1:1 port is being closed. The window is an I/O backend, not a JS Doom rewrite.
 

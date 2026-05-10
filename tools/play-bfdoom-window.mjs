@@ -1,10 +1,12 @@
+#!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
 import http from "node:http";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const ROOT = process.cwd();
+const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const WIDTH = 640;
 const HEIGHT = 400;
 const WINDOW_WIDTH = 854;
@@ -35,6 +37,7 @@ function launchRunner() {
     });
   }
   return spawn("bash", ["tools/run-bfdoom-window.sh"], {
+    cwd: ROOT,
     stdio: ["pipe", "pipe", "pipe"],
   });
 }
@@ -140,34 +143,21 @@ function page() {
     }
     body {
       display: grid;
-      place-items: start center;
+      place-items: stretch;
     }
     canvas {
-      width: min(100vw, ${WINDOW_WIDTH}px, calc((100vh - 24px) * 1.6));
-      height: min(calc(100vh - 24px), ${Math.round(WINDOW_WIDTH / 1.6)}px, calc(100vw / 1.6));
+      width: 100vw;
+      height: 100vh;
       image-rendering: pixelated;
       background: #000;
-      outline: 1px solid #222;
-    }
-    #status {
-      position: fixed;
-      left: 12px;
-      bottom: 10px;
-      padding: 4px 7px;
-      background: rgba(0, 0, 0, 0.65);
-      color: #fff;
-      font-size: 12px;
-      pointer-events: none;
     }
   </style>
 </head>
 <body>
   <canvas id="screen" width="${WIDTH}" height="${HEIGHT}"></canvas>
-  <div id="status">BFDoom window mode</div>
   <script>
     const canvas = document.getElementById("screen");
     const ctx = canvas.getContext("2d", { alpha: false });
-    const status = document.getElementById("status");
     const image = ctx.createImageData(${WIDTH}, ${HEIGHT});
     const keys = new Set();
     let socket;
@@ -225,12 +215,8 @@ function page() {
     function connect() {
       socket = new WebSocket("ws://" + location.host + "/input");
       socket.binaryType = "arraybuffer";
-      socket.onopen = () => {
-        status.textContent = "WASD/arrows move, F/Space fire, E use, Q/Esc quit";
-      };
       socket.onmessage = (event) => draw(new Uint8Array(event.data));
       socket.onclose = () => {
-        status.textContent = "BFDoom stopped";
         setTimeout(connect, 700);
       };
     }
@@ -268,6 +254,7 @@ function launchBrowser(url) {
       `--window-size=${WINDOW_WIDTH},${WINDOW_HEIGHT}`,
       `--user-data-dir=${profileDir}`,
       "--force-device-scale-factor=1",
+      "--start-fullscreen",
     ], {
       detached: true,
       stdio: "ignore",

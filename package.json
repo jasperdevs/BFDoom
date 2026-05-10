@@ -20,6 +20,20 @@
     "type": "git",
     "url": "git+ssh://git@github.com/jasperdevs/BFDoom.git"
   },
+  "bin": {
+    "bfdoom": "tools/play-bfdoom-window.mjs"
+  },
+  "files": [
+    "data/doom1.wad.gz",
+    "docs/",
+    "programs/bfdoom-linked.bf.gz",
+    "programs/braindoom.bf",
+    "src/",
+    "tools/",
+    "vendor/DOOM/",
+    "vendor/doomgeneric/",
+    "vendor/elvm/"
+  ],
   "type": "module",
   "scripts": {
     "generate": "node tools/generate-braindoom.mjs",
@@ -32,6 +46,7 @@
     "play": "node src/bf-runner.mjs programs/braindoom.bf",
     "play:bfdoom": "node tools/wsl-run.mjs tools/run-bfdoom-host.sh",
     "play:window": "node tools/play-bfdoom-window.mjs",
+    "start": "npm run play:window",
     "test:bfdoom-host": "node tools/wsl-run.mjs tools/test-bfdoom-host.sh",
     "smoke": "node test/smoke.mjs",
     "test": "npm run generate && npm run smoke && node test/elvm-doom-random.mjs && npm run elvm:bfio-size"
