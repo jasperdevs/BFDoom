@@ -1163,8 +1163,18 @@ bool host_actor_is_enemy(int type) {
   }
 }
 
+bool host_actor_is_barrel(int type) {
+  return type == 2035;
+}
+
+bool host_actor_is_shootable(int type) {
+  return host_actor_is_enemy(type) || host_actor_is_barrel(type);
+}
+
 int host_actor_start_health(int type) {
   switch (type) {
+    case 2035:
+      return 20;
     case 9:
       return 30;
     case 3004:
@@ -1187,6 +1197,8 @@ int host_actor_start_health(int type) {
 
 double host_actor_radius(int type) {
   switch (type) {
+    case 2035:
+      return 10.0;
     case 9:
     case 3001:
     case 3004:
@@ -1430,6 +1442,21 @@ bool host_actor_is_powerup(int type) {
   }
 }
 
+bool host_actor_is_decoration(int type) {
+  switch (type) {
+    case 10:
+    case 12:
+    case 15:
+    case 24:
+    case 35:
+    case 48:
+    case 2028:
+      return true;
+    default:
+      return false;
+  }
+}
+
 int host_actor_card_index(int type) {
   switch (type) {
     case 5:
@@ -1473,6 +1500,8 @@ void host_give_body(int amount) {
 int host_actor_color(int type) {
   if (host_actor_is_enemy(type))
     return type == 3001 ? 72 : type == 3002 ? 64 : type == 3004 ? 48 : 56;
+  if (host_actor_is_barrel(type))
+    return 96;
   if (host_actor_is_weapon(type) || host_actor_is_ammo(type))
     return 180;
   if (host_actor_is_health(type))
@@ -1483,11 +1512,14 @@ int host_actor_color(int type) {
     return type == 5 || type == 40 ? 200 : type == 6 || type == 39 ? 160 : 32;
   if (host_actor_is_powerup(type))
     return 176;
+  if (host_actor_is_decoration(type))
+    return 96;
   return 160;
 }
 
 bool host_actor_should_render(int type) {
-  if (host_actor_is_enemy(type))
+  if (host_actor_is_enemy(type) || host_actor_is_barrel(type) ||
+      host_actor_is_decoration(type))
     return true;
   switch (type) {
     case 2001:
@@ -1967,8 +1999,12 @@ void host_update_enemies() {
   int sight_wakes = 0;
   for (size_t i = 0; i < g_host_actors.size(); i++) {
     HostActor& actor = g_host_actors[i];
-    if (!host_actor_is_enemy(actor.type))
+    if (!host_actor_is_enemy(actor.type)) {
+      if (host_actor_is_barrel(actor.type) && !actor.alive &&
+          actor.death_tics > 0 && actor.death_tics < 25)
+        actor.death_tics++;
       continue;
+    }
     if (actor.attack_tics > 0)
       actor.attack_tics--;
     if (!actor.alive) {
@@ -3006,6 +3042,21 @@ void draw_host_flat_background(int screen, int width, int height, double px,
 
 const char* host_actor_patch_name(int type) {
   switch (type) {
+    case 10:
+    case 12:
+      return "PLAYW0";
+    case 15:
+      return "PLAYN0";
+    case 24:
+      return "POL5A0";
+    case 35:
+      return "CBRAA0";
+    case 48:
+      return "ELECA0";
+    case 2028:
+      return "COLUA0";
+    case 2035:
+      return "BAR1A0";
     case 9:
       return "SPOSA1";
     case 3004:
@@ -3251,6 +3302,18 @@ string host_actor_patch_name_for_view(const HostActor& actor, bool* flipped,
     *rotation = 0;
   if (frame_out)
     *frame_out = 'A';
+
+  if (host_actor_is_barrel(actor.type) && !actor.alive) {
+    static const char frames[] = {'A', 'B', 'C', 'D', 'E'};
+    int index = actor.death_tics / 5;
+    if (index < 0)
+      index = 0;
+    if (index > 4)
+      index = 4;
+    if (frame_out)
+      *frame_out = frames[index];
+    return string("BEXP") + frames[index] + "0";
+  }
 
   const char* prefix = host_actor_sprite_prefix(actor.type);
   if (!prefix)
@@ -3603,7 +3666,8 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   for (size_t i = 0; i < g_host_actors.size(); i++) {
     HostActor& actor = g_host_actors[i];
     if (!actor.alive &&
-        (!host_actor_is_enemy(actor.type) || actor.death_tics <= 0))
+        (!(host_actor_is_enemy(actor.type) || host_actor_is_barrel(actor.type)) ||
+         actor.death_tics <= 0))
       continue;
 
     double dx = actor.x - px;
@@ -3632,7 +3696,7 @@ void process_bfio_render_map_view(const vector<byte>& args) {
         size = height / 4;
     }
 
-    if (host_actor_is_enemy(actor.type)) {
+    if (host_actor_is_shootable(actor.type)) {
       int x0 = sx - size / 2;
       int x1 = sx + size / 2;
       int visible_x0 = width;
@@ -4875,6 +4939,50 @@ void host_alert_enemies_from_sound() {
   }
 }
 
+void host_explode_barrel(int barrel_index) {
+  if (barrel_index < 0 || barrel_index >= (int)g_host_actors.size())
+    return;
+  HostActor& barrel = g_host_actors[barrel_index];
+  const double radius = 128.0;
+
+  double pdx = g_host_player_x - barrel.x;
+  double pdy = g_host_player_y - barrel.y;
+  double player_dist = sqrt(pdx * pdx + pdy * pdy);
+  if (player_dist < radius) {
+    int damage = static_cast<int>(radius - player_dist);
+    if (damage > 0)
+      host_apply_damage(damage);
+  }
+
+  for (size_t i = 0; i < g_host_actors.size(); i++) {
+    if ((int)i == barrel_index)
+      continue;
+    HostActor& actor = g_host_actors[i];
+    if (!actor.alive || !host_actor_is_shootable(actor.type))
+      continue;
+    double dx = actor.x - barrel.x;
+    double dy = actor.y - barrel.y;
+    double dist = sqrt(dx * dx + dy * dy);
+    if (dist >= radius || host_line_blocked_by_map(barrel.x, barrel.y,
+                                                   actor.x, actor.y))
+      continue;
+    int damage = static_cast<int>(radius - dist);
+    actor.health -= damage;
+    actor.flash = 3;
+    if (actor.health <= 0) {
+      actor.alive = false;
+      actor.flash = 0;
+      actor.attack_tics = 0;
+      actor.death_tics = 1;
+      if (host_actor_is_barrel(actor.type))
+        host_explode_barrel((int)i);
+    }
+  }
+
+  if (!isatty(STDERR_FILENO))
+    fprintf(stderr, "barrel_explode index=%d\n", barrel_index);
+}
+
 bool host_fire_hitscan_shot(double angle,
                             int damage,
                             double max_dist,
@@ -4899,7 +5007,7 @@ bool host_fire_hitscan_shot(double angle,
       if (rendered.index < 0 || rendered.index >= (int)g_host_actors.size())
         continue;
       HostActor& actor = g_host_actors[rendered.index];
-      if (!actor.alive || !host_actor_is_enemy(actor.type))
+      if (!actor.alive || !host_actor_is_shootable(actor.type))
         continue;
       if (rendered.dist > max_dist)
         continue;
@@ -4914,7 +5022,7 @@ bool host_fire_hitscan_shot(double angle,
 
   for (size_t i = 0; i < g_host_actors.size(); i++) {
     HostActor& actor = g_host_actors[i];
-    if (!actor.alive || !host_actor_is_enemy(actor.type))
+    if (!actor.alive || !host_actor_is_shootable(actor.type))
       continue;
 
     double dx = actor.x - px;
@@ -4953,6 +5061,8 @@ bool host_fire_hitscan_shot(double angle,
       g_host_actors[best].flash = 0;
       g_host_actors[best].attack_tics = 0;
       g_host_actors[best].death_tics = 1;
+      if (host_actor_is_barrel(g_host_actors[best].type))
+        host_explode_barrel(best);
     }
     if (!isatty(STDERR_FILENO)) {
       fprintf(stderr, "hit type=%d damage=%d health=%d alive=%d\n",

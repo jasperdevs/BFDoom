@@ -38,7 +38,7 @@ rm -f build/bfdoom-smoke-empty.ppm build/bfdoom-smoke-empty.err
 timeout 10 "$ELVM/out/bfopt" -doom-host -wad "$WAD" \
   -capture build/bfdoom-smoke-empty.ppm "$BF" \
   </dev/null >/dev/null 2>build/bfdoom-smoke-empty.err
-grep -q "actors spawned=58 skipped_skill=24 skipped_single=14 ambush=18" build/bfdoom-smoke-empty.err
+grep -q "actors spawned=91 skipped_skill=24 skipped_single=14 ambush=25" build/bfdoom-smoke-empty.err
 grep -q "frame 1" build/bfdoom-smoke-empty.err
 test -s build/bfdoom-smoke-empty.ppm
 
