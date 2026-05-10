@@ -25,14 +25,19 @@
   },
   "files": [
     "data/doom1.wad.gz",
-    "docs/",
+    "docs/bfdoom-preview.png",
+    "docs/brainfuck-doom-port.md",
+    "docs/e1m1-route-map.png",
     "programs/bfdoom-linked.bf.gz",
     "programs/braindoom.bf",
     "src/",
-    "tools/",
-    "vendor/DOOM/",
-    "vendor/doomgeneric/",
-    "vendor/elvm/"
+    "tools/build-bfopt.sh",
+    "tools/play-bfdoom-native-window.ps1",
+    "tools/play-bfdoom-window.mjs",
+    "tools/run-bfdoom-host.sh",
+    "tools/run-bfdoom-window.sh",
+    "tools/wsl-run.mjs",
+    "vendor/elvm/tools/bfopt.cc"
   ],
   "type": "module",
   "scripts": {

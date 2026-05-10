@@ -29,8 +29,7 @@ if [ ! -f "$WAD" ]; then
 fi
 
 if [ ! -x "$ELVM/out/bfopt" ] || [ "$ELVM/tools/bfopt.cc" -nt "$ELVM/out/bfopt" ]; then
-  cd "$ELVM"
-  make out/bfopt >/dev/null
+  bash "$ROOT/tools/build-bfopt.sh" >/dev/null
 fi
 
 "$ELVM/out/bfopt" -doom-host -window-stream -wad "$WAD" -capture "$CAPTURE" "$BF"
