@@ -154,6 +154,7 @@ bool g_host_backpack = false;
 bool g_host_berserk = false;
 int g_host_invuln_tics = 0;
 int g_host_tick;
+int g_host_motion_mask;
 int g_host_prndindex;
 int g_host_damage_flash;
 int g_host_pickup_flash;
@@ -3827,15 +3828,22 @@ void process_bfio_render_map_view(const vector<byte>& args) {
 
   int status_h = height >= 320 ? 64 : 32;
   int weapon_h = height / 3;
-  int weapon_bottom = height - status_h + 8;
+  int weapon_bob_x = 0;
+  int weapon_bob_y = 0;
+  if (g_host_motion_mask) {
+    double phase = (double)(g_host_tick & 63) * (2.0 * kPi / 64.0);
+    weapon_bob_x = static_cast<int>(cos(phase) * width / 96.0);
+    weapon_bob_y = static_cast<int>(fabs(sin(phase)) * height / 96.0);
+  }
+  int weapon_bottom = height - status_h + 8 + weapon_bob_y;
   const char* idle_patch = host_weapon_patch_name(false);
-  draw_host_wad_patch(screen, width, height, idle_patch, cx, weapon_bottom,
-                      weapon_h);
+  draw_host_wad_patch(screen, width, height, idle_patch, cx + weapon_bob_x,
+                      weapon_bottom, weapon_h);
 
   if (g_host_fire_flash > 0) {
     const char* fire_patch = host_weapon_patch_name(true);
-    draw_host_wad_patch(screen, width, height, fire_patch, cx, weapon_bottom,
-                        weapon_h);
+    draw_host_wad_patch(screen, width, height, fire_patch, cx + weapon_bob_x,
+                        weapon_bottom, weapon_h);
     g_host_fire_flash--;
   }
 
@@ -6221,15 +6229,21 @@ void run_snapshot_host_loop(vector<byte>* mem) {
     if (stream_input_state) {
       apply_turn(stream_turn);
       apply_move(stream_move);
+      g_host_motion_mask = (stream_move ? 1 : 0) | (stream_turn ? 2 : 0);
     } else if (interactive_input) {
+      g_host_motion_mask = 0;
       if (turn_ttl > 0) {
         apply_turn(held_turn);
+        g_host_motion_mask |= 2;
         turn_ttl--;
       }
       if (move_ttl > 0) {
         apply_move(held_move);
+        g_host_motion_mask |= 1;
         move_ttl--;
       }
+    } else {
+      g_host_motion_mask = 0;
     }
 
     process_bfio_render_map_view(g_last_render_args);

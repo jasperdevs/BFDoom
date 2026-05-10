@@ -45,8 +45,8 @@ public sealed class BFDoomNativeForm : Form {
   const int PacketBytes = 16 + FrameBytes;
   const int TitlebarHeight = 32;
   const int ResizeBorder = 8;
-  const int InitialScaleNumerator = 3;
-  const int InitialScaleDenominator = 2;
+  const int InitialScaleNumerator = 2;
+  const int InitialScaleDenominator = 1;
   const int MinScale = 1;
   const int MaxScale = 2;
   const int WM_NCHITTEST = 0x84;
