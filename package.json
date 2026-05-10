@@ -4,6 +4,22 @@
   "description": "Doom compiled to Brainfuck with a WAD-backed playable host path.",
   "license": "GPL-2.0-only",
   "private": false,
+  "keywords": [
+    "brainfuck",
+    "doom",
+    "doomgeneric",
+    "elvm",
+    "esolang",
+    "wad"
+  ],
+  "homepage": "https://github.com/jasperdevs/BFDoom#readme",
+  "bugs": {
+    "url": "https://github.com/jasperdevs/BFDoom/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/jasperdevs/BFDoom.git"
+  },
   "type": "module",
   "scripts": {
     "generate": "node tools/generate-braindoom.mjs",

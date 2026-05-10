@@ -33,4 +33,7 @@ if [ ! -x "$ELVM/out/bfopt" ] || [ "$ELVM/tools/bfopt.cc" -nt "$ELVM/out/bfopt" 
   make out/bfopt >/dev/null
 fi
 
+if [ -t 2 ]; then
+  printf '\033[8;62;180t' >&2
+fi
 "$ELVM/out/bfopt" -doom-host -wad "$WAD" -capture "$CAPTURE" "$BF"

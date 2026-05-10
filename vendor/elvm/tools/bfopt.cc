@@ -901,8 +901,9 @@ void save_vm_snapshot(const vector<byte>& mem, int mp, size_t pc) {
 }
 
 void render_frame_terminal(const vector<byte>& frame) {
-  int cols = 64;
-  int rows = 30;
+  int cols = 180;
+  int rows = 56;
+  int term_cols = cols;
 
   if (!isatty(STDERR_FILENO)) {
     fprintf(stderr,
@@ -914,39 +915,63 @@ void render_frame_terminal(const vector<byte>& frame) {
 
   struct winsize ws;
   if (ioctl(STDERR_FILENO, TIOCGWINSZ, &ws) == 0) {
-    if (ws.ws_col > 0)
+    if (ws.ws_col > 0) {
       cols = ws.ws_col;
+      term_cols = ws.ws_col;
+    }
     if (ws.ws_row > 2)
       rows = ws.ws_row - 2;
   }
-  if (cols < 48)
-    cols = 48;
-  if (rows < 22)
-    rows = 22;
-  if (cols > 96)
-    cols = 96;
-  if (rows > 44)
-    rows = 44;
+  if (cols > 180)
+    cols = 180;
+  if (cols < 20)
+    cols = min(20, term_cols);
+
+  int max_rows = min(rows, 50);
+  if (max_rows < 8)
+    max_rows = 8;
+  rows = cols * kFrameHeight / (kFrameWidth * 2);
+  if (rows < 8)
+    rows = 8;
+  if (rows > max_rows) {
+    rows = max_rows;
+    cols = rows * kFrameWidth * 2 / kFrameHeight;
+    if (cols > term_cols)
+      cols = term_cols;
+  }
+  if (cols > 180)
+    cols = 180;
+  if (cols < 20)
+    cols = 20;
 
   if (!g_terminal_started) {
-    fprintf(stderr, "\033[2J\033[?25l");
+    fprintf(stderr, "\033[2J\033[?25l\033[?7l");
     g_terminal_started = true;
   }
 
   fprintf(stderr, "\033[H");
 
   for (int y = 0; y < rows; y++) {
-    int sy = y * kFrameHeight / rows;
+    int sy_top = (y * 2) * kFrameHeight / (rows * 2);
+    int sy_bottom = (y * 2 + 1) * kFrameHeight / (rows * 2);
     for (int x = 0; x < cols; x++) {
       int sx = x * kFrameWidth / cols;
-      int i = (sy * kFrameWidth + sx) * 3;
-      fprintf(stderr, "\033[48;2;%d;%d;%dm ", frame[i], frame[i + 1], frame[i + 2]);
+      int top = (sy_top * kFrameWidth + sx) * 3;
+      int bottom = (sy_bottom * kFrameWidth + sx) * 3;
+      fprintf(stderr,
+              "\033[38;2;%d;%d;%dm\033[48;2;%d;%d;%dm▀",
+              frame[top], frame[top + 1], frame[top + 2], frame[bottom],
+              frame[bottom + 1], frame[bottom + 2]);
     }
     fprintf(stderr, "\033[0m\n");
   }
 
-  fprintf(stderr, "\033[0mframe %d  keys: WASD/arrows move/turn, Space/F fire, 1-7 weapon, E use, Q/Esc menu\033[K\n",
-          g_frame_count);
+  char status[160];
+  snprintf(status, sizeof(status),
+           "frame %d  keys: WASD/arrows move/turn, Space/F fire, 1-7 weapon, E use, Q/Esc menu",
+           g_frame_count);
+  status[max(0, min(cols, (int)sizeof(status) - 1))] = '\0';
+  fprintf(stderr, "\033[0m%s\033[K\n\033[J", status);
   fflush(stderr);
 }
 
@@ -5463,14 +5488,28 @@ void run_snapshot_host_loop(vector<byte>* mem) {
   process_bfio_render_map_view(g_last_render_args);
   process_bfio_draw_frame(g_last_draw_args);
 
-  while (true) {
-    int ch = read_host_stdin_byte();
-    ch = translate_snapshot_input(ch);
+  auto apply_turn = [](int dir) {
+    if (dir < 0)
+      g_host_player_angle = normalize_host_angle(g_host_player_angle - 0.13);
+    else if (dir > 0)
+      g_host_player_angle = normalize_host_angle(g_host_player_angle + 0.13);
+  };
 
+  auto apply_move = [](int dir) {
+    double nx = g_host_player_x + cos(g_host_player_angle) * 16.0 * dir;
+    double ny = g_host_player_y + sin(g_host_player_angle) * 16.0 * dir;
+    if (!host_path_blocked_by_line_map(g_host_player_x, g_host_player_y, nx,
+                                       ny)) {
+      g_host_player_x = nx;
+      g_host_player_y = ny;
+    }
+  };
+
+  auto handle_input = [](int ch) -> bool {
     if (ch == -2)
-      break;
+      return false;
     if (ch == 'q' || ch == 'Q' || ch == 27)
-      break;
+      return false;
     if ('1' <= ch && ch <= '7') {
       int slot = ch - '0';
       if (g_host_weapon_owned[slot]) {
@@ -5510,10 +5549,56 @@ void run_snapshot_host_loop(vector<byte>* mem) {
         g_host_player_y = ny;
       }
     }
+    return true;
+  };
+
+  const bool interactive_input = isatty(STDIN_FILENO);
+  int held_turn = 0;
+  int held_move = 0;
+  int turn_ttl = 0;
+  int move_ttl = 0;
+
+  while (true) {
+    bool should_quit = false;
+    int input_limit = interactive_input ? 128 : 64;
+    for (int i = 0; i < input_limit; i++) {
+      int ch = translate_snapshot_input(read_host_stdin_byte());
+      if (ch == -1)
+        break;
+      if (interactive_input && (ch == 'a' || ch == 'A' || ch == 'd' ||
+                                ch == 'D')) {
+        held_turn = (ch == 'a' || ch == 'A') ? -1 : 1;
+        turn_ttl = 5;
+        continue;
+      }
+      if (interactive_input && (ch == 'w' || ch == 'W' || ch == 's' ||
+                                ch == 'S')) {
+        held_move = (ch == 's' || ch == 'S') ? -1 : 1;
+        move_ttl = 5;
+        continue;
+      }
+      if (!handle_input(ch)) {
+        should_quit = true;
+        break;
+      }
+    }
+
+    if (interactive_input) {
+      if (turn_ttl > 0) {
+        apply_turn(held_turn);
+        turn_ttl--;
+      }
+      if (move_ttl > 0) {
+        apply_move(held_move);
+        move_ttl--;
+      }
+    }
 
     process_bfio_render_map_view(g_last_render_args);
     process_bfio_draw_frame(g_last_draw_args);
-    usleep(50000);
+    if (should_quit)
+      return;
+    usleep(20000);
   }
 }
 
@@ -5626,7 +5711,7 @@ void run_fast(const vector<FastOp>& fast, const vector<LoopTerm>& loop_terms) {
   g_active_mem = NULL;
   disable_raw_terminal();
   if (g_terminal_started)
-    fprintf(stderr, "\033[0m\033[?25h\n");
+    fprintf(stderr, "\033[0m\033[?7h\033[?25h\n");
 }
 
 void compile(const vector<Op*>& ops, const char* fname) {
