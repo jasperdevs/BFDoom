@@ -5728,6 +5728,9 @@ void run_snapshot_host_loop(vector<byte>* mem) {
   int held_move = 0;
   int turn_ttl = 0;
   int move_ttl = 0;
+  bool stream_input_state = false;
+  int stream_turn = 0;
+  int stream_move = 0;
 
   while (true) {
     bool should_quit = false;
@@ -5736,6 +5739,18 @@ void run_snapshot_host_loop(vector<byte>* mem) {
       int ch = translate_snapshot_input(read_host_stdin_byte());
       if (ch == -1)
         break;
+      if (ch == 31) {
+        int state = translate_snapshot_input(read_host_stdin_byte());
+        if (state == -1)
+          break;
+        int mask = state - 'A';
+        if (0 <= mask && mask <= 15) {
+          stream_input_state = true;
+          stream_move = (mask & 1) ? 1 : ((mask & 2) ? -1 : 0);
+          stream_turn = (mask & 4) ? -1 : ((mask & 8) ? 1 : 0);
+        }
+        continue;
+      }
       if (interactive_input && (ch == 'a' || ch == 'A' || ch == 'd' ||
                                 ch == 'D')) {
         held_turn = (ch == 'a' || ch == 'A') ? -1 : 1;
@@ -5754,7 +5769,10 @@ void run_snapshot_host_loop(vector<byte>* mem) {
       }
     }
 
-    if (interactive_input) {
+    if (stream_input_state) {
+      apply_turn(stream_turn);
+      apply_move(stream_move);
+    } else if (interactive_input) {
       if (turn_ttl > 0) {
         apply_turn(held_turn);
         turn_ttl--;

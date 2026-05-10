@@ -67,10 +67,10 @@ public sealed class BFDoomNativeForm : Form {
   readonly Process runner;
   readonly Control screen;
   readonly HashSet<string> held = new HashSet<string>();
-  readonly System.Windows.Forms.Timer inputTimer = new System.Windows.Forms.Timer();
   readonly Thread readerThread;
   Bitmap bitmap;
   volatile bool closed;
+  int lastHeldMask = -1;
 
   public BFDoomNativeForm(string root, string wslScript) {
     Text = "BFDoom";
@@ -142,12 +142,12 @@ public sealed class BFDoomNativeForm : Form {
 
     KeyDown += OnKeyDown;
     KeyUp += OnKeyUp;
+    Deactivate += (s, e) => {
+      held.Clear();
+      SendHeldState(true);
+    };
     Shown += (s, e) => screen.Focus();
     FormClosed += OnClosed;
-
-    inputTimer.Interval = 16;
-    inputTimer.Tick += (s, e) => SendHeldInput();
-    inputTimer.Start();
 
     readerThread = new Thread(ReadFrames) { IsBackground = true };
     readerThread.Start();
@@ -223,6 +223,7 @@ public sealed class BFDoomNativeForm : Form {
       if (mapped == "w") held.Remove("s");
       if (mapped == "s") held.Remove("w");
       held.Add(mapped);
+      SendHeldState(false);
     } else {
       SendInput(mapped);
       if (mapped == "q") Close();
@@ -233,7 +234,7 @@ public sealed class BFDoomNativeForm : Form {
     string mapped = MapKey(e.KeyCode);
     if (mapped.Length == 0) return;
     e.SuppressKeyPress = true;
-    held.Remove(mapped);
+    if (held.Remove(mapped)) SendHeldState(false);
   }
 
   static string MapKey(Keys key) {
@@ -279,12 +280,20 @@ public sealed class BFDoomNativeForm : Form {
     }
   }
 
-  void SendHeldInput() {
-    var input = new StringBuilder();
-    foreach (string key in new[] { "w", "s", "a", "d" }) {
-      if (held.Contains(key)) input.Append(key);
-    }
-    if (input.Length > 0) SendInput(input.ToString());
+  int HeldMask() {
+    int mask = 0;
+    if (held.Contains("w")) mask |= 1;
+    if (held.Contains("s")) mask |= 2;
+    if (held.Contains("a")) mask |= 4;
+    if (held.Contains("d")) mask |= 8;
+    return mask;
+  }
+
+  void SendHeldState(bool force) {
+    int mask = HeldMask();
+    if (!force && mask == lastHeldMask) return;
+    lastHeldMask = mask;
+    SendInput("\u001f" + ((char)(65 + mask)).ToString());
   }
 
   void SendInput(string text) {
@@ -350,7 +359,6 @@ public sealed class BFDoomNativeForm : Form {
 
   void OnClosed(object sender, FormClosedEventArgs e) {
     closed = true;
-    inputTimer.Stop();
     try {
       if (runner != null && !runner.HasExited) {
         SendInput("q");

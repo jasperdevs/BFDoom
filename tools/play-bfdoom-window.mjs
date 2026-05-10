@@ -181,6 +181,7 @@ function page() {
     const ctx = canvas.getContext("2d", { alpha: false });
     const image = ctx.createImageData(${WIDTH}, ${HEIGHT});
     const keys = new Set();
+    let lastHeldMask = -1;
     let socket;
 
     function draw(rgb) {
@@ -212,6 +213,7 @@ function page() {
       if (!key) return;
       event.preventDefault();
       keys.add(key);
+      sendHeldKeys();
       if (("fqe1234567".includes(key) || key === "\\t") &&
           socket?.readyState === WebSocket.OPEN) {
         socket.send(key);
@@ -223,28 +225,38 @@ function page() {
       if (!key) return;
       event.preventDefault();
       keys.delete(key);
+      sendHeldKeys();
     });
 
     function sendHeldKeys() {
       if (socket?.readyState !== WebSocket.OPEN) return;
-      let input = "";
-      if (keys.has("w")) input += "w";
-      if (keys.has("s")) input += "s";
-      if (keys.has("a")) input += "a";
-      if (keys.has("d")) input += "d";
-      if (input) socket.send(input);
+      let mask = 0;
+      if (keys.has("w")) mask |= 1;
+      if (keys.has("s")) mask |= 2;
+      if (keys.has("a")) mask |= 4;
+      if (keys.has("d")) mask |= 8;
+      if (mask === lastHeldMask) return;
+      lastHeldMask = mask;
+      socket.send("\\x1f" + String.fromCharCode(65 + mask));
     }
 
     function connect() {
       socket = new WebSocket("ws://" + location.host + "/input");
       socket.binaryType = "arraybuffer";
       socket.onmessage = (event) => draw(new Uint8Array(event.data));
+      socket.onopen = () => {
+        lastHeldMask = -1;
+        sendHeldKeys();
+      };
       socket.onclose = () => {
         setTimeout(connect, 700);
       };
     }
 
-    setInterval(sendHeldKeys, 16);
+    addEventListener("blur", () => {
+      keys.clear();
+      sendHeldKeys();
+    });
     canvas.focus();
     connect();
   </script>
