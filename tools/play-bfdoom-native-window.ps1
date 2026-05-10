@@ -45,6 +45,8 @@ public sealed class BFDoomNativeForm : Form {
   const int PacketBytes = 16 + FrameBytes;
   const int TitlebarHeight = 32;
   const int ResizeBorder = 8;
+  const int InitialScaleNumerator = 3;
+  const int InitialScaleDenominator = 2;
   const int MinScale = 1;
   const int MaxScale = 2;
   const int WM_NCHITTEST = 0x84;
@@ -76,7 +78,8 @@ public sealed class BFDoomNativeForm : Form {
     Text = "BFDoom";
     FormBorderStyle = FormBorderStyle.None;
     StartPosition = FormStartPosition.CenterScreen;
-    ClientSize = new Size(FrameWidth, FrameHeight + TitlebarHeight);
+    ClientSize = new Size(FrameWidth * InitialScaleNumerator / InitialScaleDenominator,
+                          FrameHeight * InitialScaleNumerator / InitialScaleDenominator + TitlebarHeight);
     MinimumSize = new Size(FrameWidth * MinScale, FrameHeight * MinScale + TitlebarHeight);
     MaximumSize = new Size(FrameWidth * MaxScale, FrameHeight * MaxScale + TitlebarHeight);
     BackColor = Color.Black;
