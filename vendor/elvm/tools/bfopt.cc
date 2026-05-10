@@ -3132,6 +3132,19 @@ void draw_host_flat_background(int screen, int width, int height, double px,
   }
 }
 
+const char* host_cycled_patch_name(const char* prefix, const char* frames,
+                                   int frame_tics) {
+  static char patch[9];
+  int count = strlen(frames);
+  if (count <= 0)
+    count = 1;
+  if (frame_tics <= 0)
+    frame_tics = 1;
+  char frame = frames[(g_host_tick / frame_tics) % count];
+  snprintf(patch, sizeof(patch), "%s%c0", prefix, frame);
+  return patch;
+}
+
 const char* host_actor_patch_name(int type) {
   switch (type) {
     case 10:
@@ -3148,7 +3161,7 @@ const char* host_actor_patch_name(int type) {
     case 2028:
       return "COLUA0";
     case 2035:
-      return "BAR1A0";
+      return host_cycled_patch_name("BAR1", "AB", 6);
     case 9:
       return "SPOSA1";
     case 3004:
@@ -3187,43 +3200,43 @@ const char* host_actor_patch_name(int type) {
     case 2012:
       return "MEDIA0";
     case 2013:
-      return "SOULA0";
+      return host_cycled_patch_name("SOUL", "ABCDCB", 6);
     case 2014:
-      return "BON1A0";
+      return host_cycled_patch_name("BON1", "ABCDCB", 6);
     case 2015:
-      return "BON2A0";
+      return host_cycled_patch_name("BON2", "ABCDCB", 6);
     case 2018:
-      return "ARM1A0";
+      return host_cycled_patch_name("ARM1", "AB", 6);
     case 2019:
-      return "ARM2A0";
+      return host_cycled_patch_name("ARM2", "AB", 6);
     case 5:
-      return "BKEYA0";
+      return host_cycled_patch_name("BKEY", "AB", 10);
     case 6:
-      return "YKEYA0";
+      return host_cycled_patch_name("YKEY", "AB", 10);
     case 13:
-      return "RKEYA0";
+      return host_cycled_patch_name("RKEY", "AB", 10);
     case 38:
-      return "RSKUA0";
+      return host_cycled_patch_name("RSKU", "AB", 10);
     case 39:
-      return "YSKUA0";
+      return host_cycled_patch_name("YSKU", "AB", 10);
     case 40:
-      return "BSKUA0";
+      return host_cycled_patch_name("BSKU", "AB", 10);
     case 8:
       return "BPAKA0";
     case 83:
-      return "MEGAA0";
+      return host_cycled_patch_name("MEGA", "ABCD", 6);
     case 2022:
-      return "PINVA0";
+      return host_cycled_patch_name("PINV", "ABCD", 6);
     case 2023:
       return "PSTRA0";
     case 2024:
-      return "PINSA0";
+      return host_cycled_patch_name("PINS", "ABCD", 6);
     case 2025:
       return "SUITA0";
     case 2026:
-      return "PMAPA0";
+      return host_cycled_patch_name("PMAP", "ABCDCB", 6);
     case 2045:
-      return "PVISA0";
+      return host_cycled_patch_name("PVIS", "AB", 6);
     case 2046:
       return "BROKA0";
     case 2048:
