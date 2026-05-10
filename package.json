@@ -1,0 +1,22 @@
+{
+  "name": "bfdoom",
+  "version": "0.1.0",
+  "description": "Doom compiled to Brainfuck with a WAD-backed playable host path.",
+  "license": "GPL-2.0-only",
+  "private": false,
+  "type": "module",
+  "scripts": {
+    "generate": "node tools/generate-braindoom.mjs",
+    "elvm:mini": "node tools/wsl-run.mjs tools/elvm-mini.sh",
+    "elvm:doom-random": "node tools/wsl-run.mjs tools/elvm-doom-random.sh",
+    "elvm:bfio-size": "node tools/wsl-run.mjs tools/elvm-bfio-size.sh",
+    "build:bfdoom": "node tools/wsl-run.mjs tools/build-bfdoom-amalgam.sh",
+    "build:bfdoom-linked": "node tools/wsl-run.mjs tools/build-bfdoom-linked.sh",
+    "probe:doom": "node tools/wsl-run.mjs tools/probe-doomgeneric.sh",
+    "play": "node src/bf-runner.mjs programs/braindoom.bf",
+    "play:bfdoom": "node tools/wsl-run.mjs tools/run-bfdoom-host.sh",
+    "test:bfdoom-host": "node tools/wsl-run.mjs tools/test-bfdoom-host.sh",
+    "smoke": "node test/smoke.mjs",
+    "test": "npm run generate && npm run smoke && node test/elvm-doom-random.mjs && npm run elvm:bfio-size"
+  }
+}

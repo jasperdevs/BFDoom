@@ -1,0 +1,11 @@
+*.sh text eol=lf
+*.mjs text eol=lf
+*.c text eol=lf
+*.h text eol=lf
+*.cc text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.bf text eol=lf
+*.gz binary
+*.png binary
+*.WAD binary
