@@ -166,6 +166,7 @@ int g_host_damage_flash;
 int g_host_pickup_flash;
 bool g_host_level_complete;
 bool g_host_automap;
+bool g_host_menu;
 bool g_host_logged_rotated_sprite;
 bool g_host_logged_animated_sprite;
 bool g_host_logged_attack_sprite;
@@ -943,7 +944,7 @@ void render_frame_terminal(const vector<byte>& frame) {
 
   if (!isatty(STDERR_FILENO)) {
     fprintf(stderr,
-            "frame %d  keys: WASD/arrows move/turn, Space/F fire, 1-7 weapon, E use, Q/Esc menu\n",
+            "frame %d  keys: WASD/arrows move/turn, Space/F fire, 1-7 weapon, E use, Esc menu, Q quit\n",
             g_frame_count);
     fflush(stderr);
     return;
@@ -1004,7 +1005,7 @@ void render_frame_terminal(const vector<byte>& frame) {
 
   char status[160];
   snprintf(status, sizeof(status),
-           "frame %d  keys: WASD/arrows move/turn, Space/F fire, 1-7 weapon, E use, Q/Esc menu",
+           "frame %d  keys: WASD/arrows move/turn, Space/F fire, 1-7 weapon, E use, Esc menu, Q quit",
            g_frame_count);
   status[max(0, min(cols, (int)sizeof(status) - 1))] = '\0';
   fprintf(stderr, "\033[0m%s\033[K\n\033[J", status);
@@ -1974,6 +1975,7 @@ bool host_set_map(int episode, int map_number) {
   g_host_lines.clear();
   g_host_actors.clear();
   g_host_level_complete = false;
+  g_host_menu = false;
   return true;
 }
 
@@ -3198,6 +3200,46 @@ void draw_host_status_bar(int screen, int width, int height) {
   (void)wad_numbers;
 }
 
+void draw_host_menu_overlay(int screen, int width, int height) {
+  int panel_w = width * 3 / 5;
+  if (panel_w < 160)
+    panel_w = 160;
+  if (panel_w > width - 32)
+    panel_w = width - 32;
+  int panel_h = height * 3 / 5;
+  if (panel_h < 120)
+    panel_h = 120;
+  if (panel_h > height - 48)
+    panel_h = height - 48;
+  int x0 = (width - panel_w) / 2;
+  int y0 = (height - panel_h) / 2;
+  int x1 = x0 + panel_w;
+  int y1 = y0 + panel_h;
+
+  draw_host_rect(screen, width, height, x0, y0, x1, y1, 0);
+  draw_host_rect(screen, width, height, x0, y0, x1, y0 + 2, 176);
+  draw_host_rect(screen, width, height, x0, y1 - 2, x1, y1, 176);
+  draw_host_rect(screen, width, height, x0, y0, x0 + 2, y1, 176);
+  draw_host_rect(screen, width, height, x1 - 2, y0, x1, y1, 176);
+
+  int title_h = std::max(28, panel_h / 4);
+  draw_host_wad_patch(screen, width, height, "M_DOOM", width / 2,
+                      y0 + title_h, title_h);
+
+  static const char* items[] = {
+      "M_NGAME", "M_OPTION", "M_LOADG", "M_SAVEG", "M_QUITG"};
+  int item_h = std::max(10, panel_h / 12);
+  int item_y = y0 + title_h + item_h + 10;
+  for (int i = 0; i < 5; i++) {
+    draw_host_wad_patch_at(screen, width, height, items[i],
+                           x0 + panel_w / 2 - item_h * 3,
+                           item_y + i * (item_h + 8), item_h);
+  }
+  draw_host_wad_patch_at(screen, width, height, "M_SKULL1",
+                         x0 + panel_w / 2 - item_h * 5,
+                         item_y - 2, item_h + 4);
+}
+
 void draw_host_flat_background(int screen, int width, int height, double px,
                                double py, double base_angle, double fov) {
   const HostTexture* floor_flat = NULL;
@@ -3795,22 +3837,26 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   double fov = kPi / 2.0;
   double clip_angle = fov * 0.5;
   ensure_host_actors();
-  host_collect_pickups();
-  host_update_enemies();
-  if (g_host_invuln_tics > 0)
-    g_host_invuln_tics--;
-  if (g_host_invis_tics > 0)
-    g_host_invis_tics--;
-  if (g_host_suit_tics > 0)
-    g_host_suit_tics--;
-  if (g_host_infra_tics > 0)
-    g_host_infra_tics--;
+  if (!g_host_menu) {
+    host_collect_pickups();
+    host_update_enemies();
+    if (g_host_invuln_tics > 0)
+      g_host_invuln_tics--;
+    if (g_host_invis_tics > 0)
+      g_host_invis_tics--;
+    if (g_host_suit_tics > 0)
+      g_host_suit_tics--;
+    if (g_host_infra_tics > 0)
+      g_host_infra_tics--;
+  }
   g_host_rendered_actors.clear();
   g_host_render_width = width;
 
   if (g_host_automap) {
     draw_host_automap(screen, width, height);
     draw_host_status_bar(screen, width, height);
+    if (g_host_menu)
+      draw_host_menu_overlay(screen, width, height);
     return;
   }
 
@@ -4008,6 +4054,8 @@ void process_bfio_render_map_view(const vector<byte>& args) {
     draw_host_rect(screen, width, height, width - 3, 0, width, height, color);
     g_host_damage_flash--;
   }
+  if (g_host_menu)
+    draw_host_menu_overlay(screen, width, height);
 }
 
 HostSpriteFrame empty_sprite_frame() {
@@ -6335,8 +6383,16 @@ void run_snapshot_host_loop(vector<byte>* mem) {
   auto handle_input = [](int ch) -> bool {
     if (ch == -2)
       return false;
-    if (ch == 'q' || ch == 'Q' || ch == 27)
+    if (ch == 'q' || ch == 'Q')
       return false;
+    if (ch == 27) {
+      g_host_menu = !g_host_menu;
+      if (!isatty(STDERR_FILENO))
+        fprintf(stderr, "menu=%d\n", g_host_menu ? 1 : 0);
+      return true;
+    }
+    if (g_host_menu)
+      return true;
     if ('1' <= ch && ch <= '7') {
       int slot = ch - '0';
       if (g_host_weapon_owned[slot]) {

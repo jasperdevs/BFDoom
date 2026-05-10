@@ -93,6 +93,13 @@ printf "\tq" | timeout 10 "$ELVM/out/bfopt" -doom-host -wad "$WAD" \
 grep -q "automap=1" build/bfdoom-smoke-automap.err
 test -s build/bfdoom-smoke-automap.ppm
 
+rm -f build/bfdoom-smoke-menu.ppm build/bfdoom-smoke-menu.err
+(printf "\033"; sleep 0.05; printf "q") | timeout 10 "$ELVM/out/bfopt" -doom-host -wad "$WAD" \
+  -capture build/bfdoom-smoke-menu.ppm "$BF" \
+  >/dev/null 2>build/bfdoom-smoke-menu.err
+grep -q "menu=1" build/bfdoom-smoke-menu.err
+test -s build/bfdoom-smoke-menu.ppm
+
 rm -f build/bfdoom-smoke-pickup.ppm build/bfdoom-smoke-pickup.err
 type_slow "aaaaaaaaawwwwwwwwwwwwwwww" 0.02 0.5 | timeout 10 "$ELVM/out/bfopt" -doom-host -wad "$WAD" \
   -capture build/bfdoom-smoke-pickup.ppm "$BF" \

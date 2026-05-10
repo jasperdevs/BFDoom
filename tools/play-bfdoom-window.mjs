@@ -203,7 +203,7 @@ function page() {
       if (key === "arrowright") return "d";
       if (key === " ") return "f";
       if (key === "tab") return "\\t";
-      if (key === "escape") return "q";
+      if (key === "escape") return "\\x1b";
       if ("wasdfqe1234567".includes(key)) return key;
       return "";
     }
@@ -214,7 +214,7 @@ function page() {
       event.preventDefault();
       keys.add(key);
       sendHeldKeys();
-      if (("fqe1234567".includes(key) || key === "\\t") &&
+      if (("fqe1234567".includes(key) || key === "\\t" || key === "\\x1b") &&
           socket?.readyState === WebSocket.OPEN) {
         socket.send(key);
       }

@@ -24,9 +24,9 @@
   },
   "files": [
     "data/doom1.wad.gz",
+    "docs/bfdoom-brainfuck.png",
     "docs/bfdoom-preview.png",
     "docs/brainfuck-doom-port.md",
-    "docs/e1m1-route-map.png",
     "programs/bfdoom-linked.bf.gz",
     "programs/braindoom.bf",
     "src/",

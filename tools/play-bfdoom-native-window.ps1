@@ -262,8 +262,9 @@ public sealed class BFDoomNativeForm : Form {
       case Keys.Tab:
         return "\t";
       case Keys.Q:
-      case Keys.Escape:
         return "q";
+      case Keys.Escape:
+        return "\u001b";
       case Keys.D1:
         return "1";
       case Keys.D2:

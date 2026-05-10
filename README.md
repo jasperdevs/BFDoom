@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <img src="docs/e1m1-route-map.png" alt="E1M1 route map" width="720" />
+  <img src="docs/bfdoom-brainfuck.png" alt="BFDoom Brainfuck source excerpt" width="720" />
 </p>
 
 ## Play
@@ -36,7 +36,8 @@ The main Brainfuck program is `programs/bfdoom-linked.bf.gz`. On first run it ex
 | `E` | Use |
 | `Tab` | Automap |
 | `1`-`7` | Switch weapons |
-| `Q` / `Esc` | Quit |
+| `Esc` | Menu |
+| `Q` | Quit |
 
 ## Setup
 
