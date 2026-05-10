@@ -150,6 +150,9 @@ int g_host_health = 100;
 int g_host_armor = 0;
 int g_host_armor_type = 0;
 bool g_host_cards[6] = {false, false, false, false, false, false};
+bool g_host_backpack = false;
+bool g_host_berserk = false;
+int g_host_invuln_tics = 0;
 int g_host_tick;
 int g_host_prndindex;
 int g_host_damage_flash;
@@ -1252,9 +1255,12 @@ int host_bullet_damage() {
 int host_melee_damage() {
   switch (g_host_weapon) {
     case 1:
-      return 2 * (host_p_random() % 10 + 1);
-    default:
-      return (host_p_random() % 10 + 1) << 1;
+    default: {
+      int damage = (host_p_random() % 10 + 1) << 1;
+      if (g_host_weapon == 1 && g_host_berserk)
+        damage *= 10;
+      return damage;
+    }
   }
 }
 
@@ -1408,6 +1414,22 @@ bool host_actor_is_armor(int type) {
   return type == 2015 || type == 2018 || type == 2019;
 }
 
+bool host_actor_is_powerup(int type) {
+  switch (type) {
+    case 8:
+    case 83:
+    case 2022:
+    case 2023:
+    case 2024:
+    case 2025:
+    case 2026:
+    case 2045:
+      return true;
+    default:
+      return false;
+  }
+}
+
 int host_actor_card_index(int type) {
   switch (type) {
     case 5:
@@ -1440,6 +1462,14 @@ int host_card_mask() {
   return mask;
 }
 
+void host_give_body(int amount) {
+  if (g_host_health >= 100)
+    return;
+  g_host_health += amount;
+  if (g_host_health > 100)
+    g_host_health = 100;
+}
+
 int host_actor_color(int type) {
   if (host_actor_is_enemy(type))
     return type == 3001 ? 72 : type == 3002 ? 64 : type == 3004 ? 48 : 56;
@@ -1451,6 +1481,8 @@ int host_actor_color(int type) {
     return 112;
   if (host_actor_is_key(type))
     return type == 5 || type == 40 ? 200 : type == 6 || type == 39 ? 160 : 32;
+  if (host_actor_is_powerup(type))
+    return 176;
   return 160;
 }
 
@@ -1480,6 +1512,13 @@ bool host_actor_should_render(int type) {
     case 38:
     case 39:
     case 40:
+    case 8:
+    case 83:
+    case 2022:
+    case 2023:
+    case 2024:
+    case 2025:
+    case 2026:
     case 2045:
     case 2046:
     case 2047:
@@ -1501,6 +1540,8 @@ bool host_mapthing_allowed_for_medium_single(int options) {
 
 void host_apply_damage(int damage) {
   if (damage <= 0 || g_host_health <= 0)
+    return;
+  if (g_host_invuln_tics > 0)
     return;
 
   if (g_host_armor_type > 0 && g_host_armor > 0) {
@@ -3018,6 +3059,22 @@ const char* host_actor_patch_name(int type) {
       return "YSKUA0";
     case 40:
       return "BSKUA0";
+    case 8:
+      return "BPAKA0";
+    case 83:
+      return "MEGAA0";
+    case 2022:
+      return "PINVA0";
+    case 2023:
+      return "PSTRA0";
+    case 2024:
+      return "PINSA0";
+    case 2025:
+      return "SUITA0";
+    case 2026:
+      return "PMAPA0";
+    case 2045:
+      return "PVISA0";
     case 2046:
       return "BROKA0";
     case 2048:
@@ -3440,6 +3497,8 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   ensure_host_actors();
   host_collect_pickups();
   host_update_enemies();
+  if (g_host_invuln_tics > 0)
+    g_host_invuln_tics--;
   g_host_rendered_actors.clear();
   g_host_render_width = width;
 
@@ -4676,6 +4735,27 @@ void host_collect_pickups() {
       int card = host_actor_card_index(actor.type);
       if (0 <= card && card < 6)
         g_host_cards[card] = true;
+    } else if (host_actor_is_powerup(actor.type)) {
+      if (actor.type == 8) {
+        if (!g_host_backpack) {
+          for (int i = 0; i < HOST_AMMO_COUNT; i++)
+            g_host_ammo_max[i] *= 2;
+          g_host_backpack = true;
+        }
+        host_add_ammo(HOST_AMMO_BULLET, 10);
+        host_add_ammo(HOST_AMMO_SHELL, 4);
+        host_add_ammo(HOST_AMMO_ROCKET, 1);
+        host_add_ammo(HOST_AMMO_CELL, 20);
+      } else if (actor.type == 83) {
+        g_host_health = 200;
+        g_host_armor = 200;
+        g_host_armor_type = 2;
+      } else if (actor.type == 2022) {
+        g_host_invuln_tics = 30 * 35;
+      } else if (actor.type == 2023) {
+        host_give_body(100);
+        g_host_berserk = true;
+      }
     } else {
       continue;
     }
@@ -4684,9 +4764,10 @@ void host_collect_pickups() {
     g_host_pickup_flash = 5;
     if (!isatty(STDERR_FILENO)) {
       fprintf(stderr,
-              "pickup type=%d health=%d armor=%d armortype=%d ammo=%d keys=%02x\n",
+              "pickup type=%d health=%d armor=%d armortype=%d ammo=%d keys=%02x backpack=%d berserk=%d invuln=%d\n",
               actor.type, g_host_health, g_host_armor, g_host_armor_type,
-              host_current_ammo(), host_card_mask());
+              host_current_ammo(), host_card_mask(), g_host_backpack ? 1 : 0,
+              g_host_berserk ? 1 : 0, g_host_invuln_tics);
     }
   }
 }
