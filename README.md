@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/bfdoom-logo.png" alt="BFDoom" width="760" />
+</p>
+
 <h1 align="center">BFDoom</h1>
 
 <p align="center">Doom compiled to Brainfuck and playable in a small desktop window.</p>
