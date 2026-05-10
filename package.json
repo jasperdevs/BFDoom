@@ -31,6 +31,7 @@
     "probe:doom": "node tools/wsl-run.mjs tools/probe-doomgeneric.sh",
     "play": "node src/bf-runner.mjs programs/braindoom.bf",
     "play:bfdoom": "node tools/wsl-run.mjs tools/run-bfdoom-host.sh",
+    "play:window": "node tools/play-bfdoom-window.mjs",
     "test:bfdoom-host": "node tools/wsl-run.mjs tools/test-bfdoom-host.sh",
     "smoke": "node test/smoke.mjs",
     "test": "npm run generate && npm run smoke && node test/elvm-doom-random.mjs && npm run elvm:bfio-size"

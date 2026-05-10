@@ -37,6 +37,7 @@ using namespace std;
 bool g_trace;
 bool g_verbose;
 bool g_doom_host;
+bool g_window_stream;
 string g_wad_path = "data/DOOM1.WAD";
 string g_capture_path = "build/bfdoom-first-frame.ppm";
 string g_program_path;
@@ -975,10 +976,35 @@ void render_frame_terminal(const vector<byte>& frame) {
   fflush(stderr);
 }
 
+void write_u16_le(FILE* fp, unsigned int value) {
+  fputc(value & 255, fp);
+  fputc((value >> 8) & 255, fp);
+}
+
+void write_u32_le(FILE* fp, unsigned int value) {
+  fputc(value & 255, fp);
+  fputc((value >> 8) & 255, fp);
+  fputc((value >> 16) & 255, fp);
+  fputc((value >> 24) & 255, fp);
+}
+
+void stream_frame_window(const vector<byte>& frame) {
+  fwrite("BFDW", 1, 4, stdout);
+  write_u16_le(stdout, kFrameWidth);
+  write_u16_le(stdout, kFrameHeight);
+  write_u32_le(stdout, static_cast<unsigned int>(g_frame_count));
+  write_u32_le(stdout, static_cast<unsigned int>(frame.size()));
+  fwrite(frame.data(), 1, frame.size(), stdout);
+  fflush(stdout);
+}
+
 void handle_frame(const vector<byte>& frame) {
   g_frame_count++;
   save_first_frame_ppm(frame);
-  render_frame_terminal(frame);
+  if (g_window_stream)
+    stream_frame_window(frame);
+  else
+    render_frame_terminal(frame);
   if (g_frame_count == 1)
     g_snapshot_due = true;
 }
@@ -5800,6 +5826,9 @@ int main(int argc, char* argv[]) {
       g_verbose = true;
     } else if (!strcmp(argv[1], "-doom-host")) {
       g_doom_host = true;
+    } else if (!strcmp(argv[1], "-window-stream")) {
+      g_doom_host = true;
+      g_window_stream = true;
     } else if (!strcmp(argv[1], "-wad")) {
       if (argc < 3) {
         fprintf(stderr, "-wad requires a path\n");
