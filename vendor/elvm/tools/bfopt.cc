@@ -3817,7 +3817,6 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   }
 
   int cx = width / 2;
-  int cy = height / 2;
 
   for (size_t i = 0; i < g_host_actors.size(); i++) {
     HostActor& actor = g_host_actors[i];
@@ -3880,9 +3879,6 @@ void process_bfio_render_map_view(const vector<byte>& args) {
     if (actor.flash > 0)
       actor.flash--;
   }
-
-  draw_host_line(screen, width, height, cx - 5, cy, cx + 5, cy, 4);
-  draw_host_line(screen, width, height, cx, cy - 5, cx, cy + 5, 4);
 
   int status_h = height >= 320 ? 64 : 32;
   int weapon_h = height / 3;
