@@ -1,5 +1,5 @@
 {
-  "name": "bfdoom",
+  "name": "@jasperdevs/bfdoom",
   "version": "0.1.0",
   "description": "Doom compiled to Brainfuck with a WAD-backed playable host path.",
   "license": "GPL-2.0-only",
@@ -18,7 +18,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/jasperdevs/BFDoom.git"
+    "url": "git+https://github.com/jasperdevs/BFDoom.git"
   },
   "bin": {
     "bfdoom": "tools/play-bfdoom-window.mjs"
