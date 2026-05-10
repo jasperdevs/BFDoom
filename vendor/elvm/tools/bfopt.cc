@@ -104,6 +104,7 @@ struct HostLine {
   bool blocks_move;
   bool door;
   bool exit;
+  bool mapped;
 };
 
 struct HostTexture {
@@ -1921,6 +1922,7 @@ void ensure_host_map() {
                 host_line_special_is_door(special);
     line.exit = texture.find("EXIT") != string::npos ||
                 host_line_special_is_exit(special);
+    line.mapped = false;
     g_host_lines.push_back(line);
   }
 }
@@ -2921,15 +2923,23 @@ void draw_host_automap(int screen, int width, int height) {
 
   for (size_t i = 0; i < g_host_lines.size(); i++) {
     const HostLine& line = g_host_lines[i];
+    bool never_see = (line.flags & 128) != 0;
+    if (never_see)
+      continue;
+    if (!line.mapped && !g_host_allmap)
+      continue;
     int x1 = static_cast<int>(floor(ox + line.x1 * scale + 0.5));
     int y1 = static_cast<int>(floor(oy - line.y1 * scale + 0.5));
     int x2 = static_cast<int>(floor(ox + line.x2 * scale + 0.5));
     int y2 = static_cast<int>(floor(oy - line.y2 * scale + 0.5));
-    int color = line.solid ? 4 : 104;
-    if (line.door)
-      color = 176;
-    if (line.exit)
-      color = 112;
+    int color = 88;
+    if (line.mapped) {
+      color = line.solid ? 4 : 104;
+      if (line.door)
+        color = 176;
+      if (line.exit)
+        color = 112;
+    }
     draw_host_line(screen, width, height, x1, y1, x2, y2, color);
   }
 
@@ -3804,6 +3814,8 @@ void process_bfio_render_map_view(const vector<byte>& args) {
     }
 
     if (best < 1.0e20) {
+      if (best_line >= 0)
+        g_host_lines[best_line].mapped = true;
       double corrected = best * cos(ray_angle - base_angle);
       int wall = static_cast<int>(height * 48.0 / (corrected + 1.0));
       if (wall < 2)
