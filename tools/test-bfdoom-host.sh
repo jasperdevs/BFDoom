@@ -77,6 +77,15 @@ printf "\033[C\033[C" | timeout 10 "$ELVM/out/bfopt" -doom-host -wad "$WAD" \
 grep -q "frame 1" build/bfdoom-smoke-arrows.err
 test -s build/bfdoom-smoke-arrows.ppm
 
+rm -f build/bfdoom-smoke-held-input.ppm build/bfdoom-smoke-held-input.err
+printf "\037B\037I\037Aq" | timeout 10 "$ELVM/out/bfopt" -doom-host -wad "$WAD" \
+  -capture build/bfdoom-smoke-held-input.ppm "$BF" \
+  >/dev/null 2>build/bfdoom-smoke-held-input.err
+grep -q "input_state mask=1" build/bfdoom-smoke-held-input.err
+grep -q "input_state mask=8" build/bfdoom-smoke-held-input.err
+grep -q "input_state mask=0" build/bfdoom-smoke-held-input.err
+test -s build/bfdoom-smoke-held-input.ppm
+
 rm -f build/bfdoom-smoke-automap.ppm build/bfdoom-smoke-automap.err
 printf "\tq" | timeout 10 "$ELVM/out/bfopt" -doom-host -wad "$WAD" \
   -capture build/bfdoom-smoke-automap.ppm "$BF" \

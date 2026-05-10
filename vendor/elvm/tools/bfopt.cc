@@ -5731,6 +5731,7 @@ void run_snapshot_host_loop(vector<byte>* mem) {
   bool stream_input_state = false;
   int stream_turn = 0;
   int stream_move = 0;
+  int last_logged_stream_mask = -1;
 
   while (true) {
     bool should_quit = false;
@@ -5748,6 +5749,10 @@ void run_snapshot_host_loop(vector<byte>* mem) {
           stream_input_state = true;
           stream_move = (mask & 1) ? 1 : ((mask & 2) ? -1 : 0);
           stream_turn = (mask & 4) ? -1 : ((mask & 8) ? 1 : 0);
+          if (mask != last_logged_stream_mask && !isatty(STDERR_FILENO)) {
+            fprintf(stderr, "input_state mask=%d\n", mask);
+            last_logged_stream_mask = mask;
+          }
         }
         continue;
       }
