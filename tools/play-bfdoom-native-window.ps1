@@ -29,8 +29,12 @@ public sealed class BFDoomScreen : Control {
     SetStyle(ControlStyles.UserPaint |
              ControlStyles.AllPaintingInWmPaint |
              ControlStyles.OptimizedDoubleBuffer |
+             ControlStyles.Opaque |
              ControlStyles.ResizeRedraw, true);
     UpdateStyles();
+  }
+
+  protected override void OnPaintBackground(PaintEventArgs pevent) {
   }
 }
 
@@ -59,7 +63,7 @@ public sealed class BFDoomNativeForm : Form {
     Text = "BFDoom";
     FormBorderStyle = FormBorderStyle.None;
     StartPosition = FormStartPosition.CenterScreen;
-    ClientSize = new Size(960, 632);
+    ClientSize = new Size(FrameWidth, FrameHeight + TitlebarHeight);
     BackColor = Color.Black;
     KeyPreview = true;
     DoubleBuffered = true;
@@ -149,12 +153,15 @@ public sealed class BFDoomNativeForm : Form {
   }
 
   void PaintScreen(object sender, PaintEventArgs e) {
-    e.Graphics.Clear(Color.Black);
-    e.Graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
-    e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
     var current = bitmap;
     if (current != null) {
+      e.Graphics.CompositingMode = CompositingMode.SourceCopy;
+      e.Graphics.CompositingQuality = CompositingQuality.HighSpeed;
+      e.Graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
+      e.Graphics.PixelOffsetMode = PixelOffsetMode.Half;
       e.Graphics.DrawImage(current, screen.ClientRectangle);
+    } else {
+      e.Graphics.Clear(Color.Black);
     }
   }
 
