@@ -1782,6 +1782,58 @@ void host_wake_actor(HostActor& actor) {
   actor.ambush = false;
 }
 
+bool host_enemy_hits_player(const HostActor& actor, int spread_shift) {
+  double dx = g_host_player_x - actor.x;
+  double dy = g_host_player_y - actor.y;
+  double dist = sqrt(dx * dx + dy * dy);
+  if (dist <= 0.0 || dist > 2048.0)
+    return false;
+
+  double base_angle = atan2(dy, dx);
+  double angle = normalize_host_angle(base_angle +
+                                      host_doom_angle_spread(spread_shift));
+  double rel = normalize_host_angle(base_angle - angle);
+  double lateral = fabs(sin(rel) * dist);
+  return lateral <= 16.0 &&
+         !host_line_blocked_by_map(actor.x, actor.y, g_host_player_x,
+                                   g_host_player_y);
+}
+
+int host_enemy_attack_damage(const HostActor& actor, double dist,
+                             bool line_of_sight) {
+  if (!line_of_sight)
+    return 0;
+
+  switch (actor.type) {
+    case 9: {
+      int damage = 0;
+      for (int i = 0; i < 3; i++) {
+        if (host_enemy_hits_player(actor, 20))
+          damage += ((host_p_random() % 5) + 1) * 3;
+        else
+          host_p_random();
+      }
+      return damage;
+    }
+    case 3004:
+      if (host_enemy_hits_player(actor, 20))
+        return ((host_p_random() % 5) + 1) * 3;
+      host_p_random();
+      return 0;
+    case 3001:
+      if (dist <= 64.0)
+        return (host_p_random() % 8 + 1) * 3;
+      return 0;
+    case 58:
+    case 3002:
+      if (dist <= 64.0)
+        return ((host_p_random() % 10) + 1) * 4;
+      return 0;
+    default:
+      return 0;
+  }
+}
+
 void host_update_enemies() {
   ensure_host_actors();
   ensure_host_player_start();
@@ -1814,22 +1866,22 @@ void host_update_enemies() {
       host_wake_actor(actor);
       sight_wakes++;
     }
-    if (dist < 48.0 && line_of_sight) {
-      if ((g_host_tick % 10) == 0) {
-        actor.attack_tics = 24;
-        host_apply_damage(2);
-      }
-      continue;
-    }
 
     actor.angle = static_cast<int>(atan2(dy, dx) * 360.0 / (2.0 * kPi));
     if (actor.angle < 0)
       actor.angle += 360;
-    if (dist < 700.0 && line_of_sight &&
+    if ((dist <= 64.0 || actor.type == 9 || actor.type == 3004) &&
+        line_of_sight && actor.attack_tics == 0 &&
         (g_host_tick + static_cast<int>(i) * 7) % 45 == 0) {
       actor.attack_tics = 24;
-      int damage = actor.type == 3001 ? 5 : 3;
-      host_apply_damage(damage);
+      int damage = host_enemy_attack_damage(actor, dist, line_of_sight);
+      if (damage > 0) {
+        host_apply_damage(damage);
+        if (!isatty(STDERR_FILENO)) {
+          fprintf(stderr, "enemy_attack type=%d damage=%d dist=%.1f\n",
+                  actor.type, damage, dist);
+        }
+      }
     }
 
     double step = 1.2;
