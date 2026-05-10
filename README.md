@@ -60,6 +60,7 @@ That raw file is not committed because it is about 550 MB.
 - `W` / `S` or Up / Down: move
 - `A` / `D` or Left / Right: turn
 - `Space` / `F`: fire
+- `Tab`: automap
 - `1`-`7`: switch owned weapons
 - `E`: use
 - `Q` / `Esc`: quit

@@ -44,7 +44,7 @@ Implemented in the playable path:
 - Enemies and pickups loaded from E1M1 THINGS with Doom's medium-skill single-player spawn filtering and ambush flags preserved.
 - Enemy wake behavior now uses THING angles, front-facing sight checks, sound alerts, and the ambush flag instead of waking every monster immediately.
 - WAD patch sprites for common enemies, weapons, ammo, health, armor, multiple weapon views, Doom source enemy identities/health, angle-dependent monster rotations, and source-shaped standing/chase/attack/pain/death frame selection.
-- Movement, turning, arrow-key input, firing, use, weapon switching, pickups, separate bullet/shell/rocket/cell ammo pools, Doom `MISSILERANGE` bullet reach, source-radius enemy hit tests, enemy health, enemy attacks, armor absorption, hit feedback, damage feedback, exit activation, map advancement, WAD-backed HUD, and WAD-backed weapon view.
+- Movement, turning, arrow-key input, firing, use, automap toggle, weapon switching, pickups, separate bullet/shell/rocket/cell ammo pools, Doom `MISSILERANGE` bullet reach, source-radius enemy hit tests, enemy health, enemy attacks, armor absorption, hit feedback, damage feedback, exit activation, map advancement, WAD-backed HUD, and WAD-backed weapon view.
 
 ## Host Boundary
 

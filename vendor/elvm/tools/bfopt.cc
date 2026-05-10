@@ -153,6 +153,7 @@ int g_host_prndindex;
 int g_host_damage_flash;
 int g_host_pickup_flash;
 bool g_host_level_complete;
+bool g_host_automap;
 bool g_host_logged_rotated_sprite;
 bool g_host_logged_animated_sprite;
 bool g_host_logged_attack_sprite;
@@ -2602,6 +2603,80 @@ void draw_host_rect(int screen, int width, int height, int x0, int y0,
       write_elvm_byte(screen + y * width + x, color);
 }
 
+void draw_host_automap(int screen, int width, int height) {
+  int status_h = height >= 320 ? 64 : 32;
+  int map_h = height - status_h;
+  if (map_h <= 8)
+    return;
+
+  draw_host_rect(screen, width, height, 0, 0, width, map_h, 0);
+
+  if (g_host_lines.empty())
+    return;
+
+  double min_x = g_host_lines[0].x1;
+  double max_x = g_host_lines[0].x1;
+  double min_y = g_host_lines[0].y1;
+  double max_y = g_host_lines[0].y1;
+  for (size_t i = 0; i < g_host_lines.size(); i++) {
+    const HostLine& line = g_host_lines[i];
+    min_x = std::min(min_x, std::min(line.x1, line.x2));
+    max_x = std::max(max_x, std::max(line.x1, line.x2));
+    min_y = std::min(min_y, std::min(line.y1, line.y2));
+    max_y = std::max(max_y, std::max(line.y1, line.y2));
+  }
+
+  double span_x = max_x - min_x;
+  double span_y = max_y - min_y;
+  if (span_x < 1.0)
+    span_x = 1.0;
+  if (span_y < 1.0)
+    span_y = 1.0;
+
+  double scale_x = (width - 24.0) / span_x;
+  double scale_y = (map_h - 24.0) / span_y;
+  double scale = std::min(scale_x, scale_y);
+  double draw_w = span_x * scale;
+  double draw_h = span_y * scale;
+  double ox = (width - draw_w) * 0.5 - min_x * scale;
+  double oy = (map_h + draw_h) * 0.5 + min_y * scale;
+
+  for (size_t i = 0; i < g_host_lines.size(); i++) {
+    const HostLine& line = g_host_lines[i];
+    int x1 = static_cast<int>(floor(ox + line.x1 * scale + 0.5));
+    int y1 = static_cast<int>(floor(oy - line.y1 * scale + 0.5));
+    int x2 = static_cast<int>(floor(ox + line.x2 * scale + 0.5));
+    int y2 = static_cast<int>(floor(oy - line.y2 * scale + 0.5));
+    int color = line.solid ? 4 : 104;
+    if (line.door)
+      color = 176;
+    if (line.exit)
+      color = 112;
+    draw_host_line(screen, width, height, x1, y1, x2, y2, color);
+  }
+
+  int px = static_cast<int>(floor(ox + g_host_player_x * scale + 0.5));
+  int py = static_cast<int>(floor(oy - g_host_player_y * scale + 0.5));
+  int arrow = std::max(6, static_cast<int>(12.0 * scale / 0.25));
+  if (arrow > 18)
+    arrow = 18;
+  int fx = static_cast<int>(cos(g_host_player_angle) * arrow);
+  int fy = static_cast<int>(sin(g_host_player_angle) * arrow);
+  int rx = static_cast<int>(cos(g_host_player_angle + kPi * 0.75) *
+                            arrow * 0.55);
+  int ry = static_cast<int>(sin(g_host_player_angle + kPi * 0.75) *
+                            arrow * 0.55);
+  int lx = static_cast<int>(cos(g_host_player_angle - kPi * 0.75) *
+                            arrow * 0.55);
+  int ly = static_cast<int>(sin(g_host_player_angle - kPi * 0.75) *
+                            arrow * 0.55);
+  draw_host_line(screen, width, height, px, py, px + fx, py - fy, 112);
+  draw_host_line(screen, width, height, px + fx, py - fy, px + rx, py - ry,
+                 112);
+  draw_host_line(screen, width, height, px + fx, py - fy, px + lx, py - ly,
+                 112);
+}
+
 bool draw_host_wad_patch(int screen, int width, int height, const char* name,
                          int center_x, int bottom_y, int draw_h);
 
@@ -3205,6 +3280,13 @@ void process_bfio_render_map_view(const vector<byte>& args) {
   host_update_enemies();
   g_host_rendered_actors.clear();
   g_host_render_width = width;
+
+  if (g_host_automap) {
+    draw_host_automap(screen, width, height);
+    draw_host_status_bar(screen, width, height);
+    return;
+  }
+
   vector<double> zbuffer(width, 1.0e30);
 
   draw_host_flat_background(screen, width, height, px, py, base_angle, fov);
@@ -5553,6 +5635,11 @@ void run_snapshot_host_loop(vector<byte>* mem) {
     }
     if (ch == 'e' || ch == 'E')
       host_use_action();
+    if (ch == '\t') {
+      g_host_automap = !g_host_automap;
+      if (!isatty(STDERR_FILENO))
+        fprintf(stderr, "automap=%d\n", g_host_automap ? 1 : 0);
+    }
     if (ch == 'a' || ch == 'A')
       g_host_player_angle = normalize_host_angle(g_host_player_angle - 0.13);
     if (ch == 'd' || ch == 'D')
